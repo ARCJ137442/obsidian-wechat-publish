@@ -7,8 +7,9 @@ Obsidian plugin for Markdown → WeChat Official Account publishing with "简约
 ## Quick Start
 
 ```bash
-npm install && npm run build
-# Deploy: cp main.js manifest.json styles.css → .obsidian/plugins/obsidian-wechat-publish/
+npm install
+npm run deploy -- <vault-path>   # e.g., npm run deploy -- H:/MyVault
+npm run deploy                    # defaults to life-series vault
 ```
 
 ## Complementary: WeDown + Custom CSS
