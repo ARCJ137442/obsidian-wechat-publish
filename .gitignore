@@ -22,3 +22,14 @@ data.json
 .DS_Store
 
 cpplugin.sh
+
+# Dev tools with local paths (machine-specific)
+gen_e2e.js
+gen_copy_html.js
+gen_tdd_output.js
+convert_series.js
+convert_series.py
+
+# Compiled output
+main.js
+tests/callout-plugin.js
