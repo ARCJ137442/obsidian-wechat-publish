@@ -33,3 +33,4 @@ convert_series.py
 # Compiled output
 main.js
 tests/callout-plugin.js
+temp-test/
