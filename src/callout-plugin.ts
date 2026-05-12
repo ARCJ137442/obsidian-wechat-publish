@@ -3,14 +3,14 @@
  * <table> blocks BEFORE markdown-it. WeChat preserves <table> but strips <div>.
  */
 const CALLOUT_THEMES: Record<string, { border: string; bg: string; titleColor: string; titleBg: string }> = {
-	'note':     { border: '#888',    bg: '#fafafa', titleColor: '#555',    titleBg: '#f3f3f3' },
-	'info':     { border: '#7ba7bc', bg: '#f8fafb', titleColor: '#4a7585', titleBg: '#eef4f6' },
-	'tip':      { border: '#7ba37b', bg: '#f8faf8', titleColor: '#4a704a', titleBg: '#eef3ee' },
-	'question': { border: '#b7a07b', bg: '#faf9f6', titleColor: '#7a684a', titleBg: '#f3f0ea' },
-	'warning':  { border: '#bc9a7b', bg: '#faf7f4', titleColor: '#856a4a', titleBg: '#f3eee6' },
-	'danger':   { border: '#bc7b7b', bg: '#faf5f5', titleColor: '#854a4a', titleBg: '#f3e6e6' },
-	'example':  { border: '#7baa99', bg: '#f6faf9', titleColor: '#4a7566', titleBg: '#eaf3f0' },
-	'quote':    { border: '#999',    bg: '#f8f8f8', titleColor: '#666',    titleBg: '#eee' },
+	'note':     { border: '#888',    bg: '#f5f3f7', titleColor: '#555',    titleBg: '#ede8f2' },
+	'info':     { border: '#7ba7bc', bg: '#f0f6f9', titleColor: '#4a7585', titleBg: '#e2eef4' },
+	'tip':      { border: '#7ba37b', bg: '#f0f6f2', titleColor: '#4a704a', titleBg: '#e2f0e6' },
+	'question': { border: '#b7a07b', bg: '#f7f4ec', titleColor: '#7a684a', titleBg: '#f0eade' },
+	'warning':  { border: '#bc9a7b', bg: '#f7f2ec', titleColor: '#856a4a', titleBg: '#f0e6d8' },
+	'danger':   { border: '#bc7b7b', bg: '#f7efef', titleColor: '#854a4a', titleBg: '#f0dfdf' },
+	'example':  { border: '#7baa99', bg: '#eff7f5', titleColor: '#4a7566', titleBg: '#dff0eb' },
+	'quote':    { border: '#999',    bg: '#f5f5f5', titleColor: '#666',    titleBg: '#eaeaea' },
 };
 
 const CALLOUT_ALIASES: Record<string, string> = {
@@ -43,7 +43,7 @@ export default function preprocessCallouts(md: string): string {
 			.trim();
 
 		// WeChat-safe <table> structure with inline styles
-		return `<table class="wechat-callout-table" style="width:100%;margin:20px 0;border-collapse:collapse;border-spacing:0"><tbody><tr><td style="border-left:3px solid ${theme.border};background:${theme.bg};padding:12px 16px;border-radius:4px">
+		return `<table class="wechat-callout-table wechat-callout-${cType}" style="width:100%;margin:20px 0;border-collapse:collapse;border-spacing:0"><tbody><tr><td style="border-left:3px solid ${theme.border};background:${theme.bg};padding:12px 16px;border-radius:4px">
 <p style="margin:0 0 8px 0;color:${theme.titleColor};font-size:14px;font-weight:600;line-height:1.6">${cTitle}</p>
 ${body.split('\n').map(line => `<p style="margin:0 0 6px 0;color:rgba(0,0,0,0.7);font-size:15px;line-height:1.75">${line}</p>`).join('\n')}
 </td></tr></tbody></table>\n`;

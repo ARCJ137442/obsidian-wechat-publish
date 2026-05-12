@@ -1,55 +1,50 @@
 # obsidian-wechat-publish
 
-Obsidian plugin for one-click Markdown → WeChat Official Account publishing with minimalist diary theme.
+Obsidian plugin for Markdown → WeChat Official Account publishing with "简约日记风" minimalist diary theme.
+
+**Version**: v0.3 · **Tests**: 24 vitest · **License**: MIT (forked from tinyking/obsidian-wechat-publish)
 
 ## Quick Start
 
 ```bash
-npm install
-npm run build
-# Copy main.js, manifest.json, styles.css to .obsidian/plugins/obsidian-wechat-publish/
+npm install && npm run build
+# Deploy: cp main.js manifest.json styles.css → .obsidian/plugins/obsidian-wechat-publish/
 ```
 
-## Project Structure
+## Complementary: WeDown + Custom CSS
 
-```
-src/
-  main.ts              — Plugin entry: commands, processMarkdown, processAndPreview/Copy
-  callout-plugin.ts    — Markdown preprocessor: > [!NOTE] → <div class="wechat-callout">
-tests/
-  full-pipeline.test.ts    — E2E test: .md file → full HTML output
-  remaining-bugs.test.ts   — Regression tests for LaTeX, dark mode
-  callout.test.ts          — Callout-specific tests
-  callout-plugin.js        — Compiled callout plugin (for Node.js testing)
-  *.test.ts                — Vitest test files
-wechat-theme.css      — Standalone CSS (used by Python/JS converters)
-convert_series.py     — Python standalone converter (batch mode)
-convert_series.js     — Node.js standalone converter (batch mode)
-docs/                 — Documentation
-```
+For users who don't need LaTeX / callout / highlight support, a lighter alternative exists:
+- `C:\Users\56506\我们的样式（准备对齐WeDown）.css` — paste into WeDown settings
+- WeDown handles Markdown → HTML rendering; we only provide the CSS theme
+- Both schemes (plugin + WeDown) are maintained in parallel
 
 ## Architecture
 
 ```
 Obsidian MD (.md)
-  ↓ parseFrontmatter()     — strip YAML
-  ↓ convertWikiLinks()     — ![[img]] → ![](img)
-  ↓ mdUnescape()           — backslash escapes → placeholders
-  ↓ LaTeX $...$            → placeholders
-  ↓ preprocessCallouts()   — > [!TYPE] → <div class="wechat-callout">
-  ↓ markdown-it            — MD → HTML
-  ↓ restoreEscapes()       — placeholders → literal chars
-  ↓ renderLatexSvg()       — LaTeX placeholders → SVG (codecogs API)
-  ↓ processImagesToBase64()— local images → data: URLs
+  ↓ parseFrontmatter()       — strip YAML
+  ↓ convertWikiLinks()       — ![[img]] → ![](img)
+  ↓ mdUnescape()             — backslash escapes → placeholders
+  ↓ LaTeX $...$              → placeholders  
+  ↓ preprocessCallouts()     — > [!TYPE] → table structure
+  ↓ markdown-it (+mark)      — MD → HTML
+  ↓ restoreEscapes()         — placeholders → literal chars
+  ↓ renderLatexSvg()         — LaTeX → SVG (codecogs, Preview only)
   ↓
-  ├── [Preview] → HTTP server → browser
-  └── [Copy]    → juice CSS inline → clipboard
+  ├── forCopy=true  → replaceImagesWithPlaceholders + LaTeX placeholder
+  ├── forCopy=false → processImagesToBase64 + renderLatexSvg
+  ↓
+  ├── [Preview] → HTTP server → browser (dark mode @media preserved)
+  └── [Copy]    → strip @media → juice inline → Electron clipboard
 ```
 
-## Commands
+## Key Decisions
 
-- `Preview in Browser`: Full HTML with dark mode CSS, served via local HTTP
-- `Copy to WeChat`: Juice-inlined HTML → clipboard → paste into WeChat editor
+- **Copy path uses Electron native `clipboard.write({text, html})`** — Web Clipboard API caused WeChat editor hangs
+- **Images/LaTeX use text placeholders in Copy mode** — `【图片：path】` / `【公式：formula】`
+  Base64 images caused RESULT_CODE_HUNG; the hung state pollutes browser cookies/cache permanently
+- **Callouts use `<table>` with inline styles** — WeChat strips `<div>` but preserves `<table>`
+- **WeDown scheme is complementary, not replacement** — plugin handles LaTeX/Callout/Highlight that WeDown cannot
 
 ## Testing
 
@@ -57,4 +52,4 @@ Obsidian MD (.md)
 npx vitest run
 ```
 
-24 tests covering: callout rendering (7 types), LaTeX SVG, backslash escapes, code blocks, tables, lists, blockquotes, dark mode, mark/highlight dark mode.
+24 tests covering: callout (8 types), LaTeX SVG, backslash escapes, code blocks, tables, lists, blockquotes, dark mode, mark/highlight.
