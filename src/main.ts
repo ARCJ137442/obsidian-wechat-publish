@@ -493,7 +493,7 @@ export default class WechatCopyPlugin extends Plugin {
 	}
 
 	// ── Shared: Enhanced MD → HTML ──
-	async processMarkdown(markdown: string, currentPath: string): Promise<string> {
+	async processMarkdown(markdown: string, currentPath: string, forCopy = false): Promise<string> {
 		// 1. WikiLink normalization
 		const normalized = this.convertWikiLinks(markdown);
 
@@ -531,7 +531,9 @@ export default class WechatCopyPlugin extends Plugin {
 		}
 
 		// 9. Image → Base64
-		html = await this.processImagesToBase64(html, currentPath);
+		html = forCopy
+				? this.replaceImagesWithPlaceholders(html)
+				: await this.processImagesToBase64(html, currentPath);
 
 		return html;
 	}
@@ -742,9 +744,9 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 		new Notice('正在渲染排版并处理图片...');
 		try {
 			const { body: mdBody } = this.parseFrontmatter(markdown);
-			const bodyHtml = await this.processMarkdown(mdBody, currentPath);
+			const bodyHtml = await this.processMarkdown(mdBody, currentPath, true);
 			// Strip @media blocks (WeChat handles dark mode on its own; they can't be juice-inlined)
-			const renderCSS = this.getRenderCSS().replace(/@media\s*\([^{]*\)\s*\{[^}]*\}/g, '');
+			const renderCSS = this.getCopyCSS();
 			const fullHtml = `<div class="wechat-content"><style>${renderCSS}</style>${bodyHtml}</div>`;
 			const inlinedHtml = juice(fullHtml);
 			// Use stripped rendered text as plain-text fallback, not raw markdown
@@ -817,6 +819,26 @@ ${CALLOUT_FALLBACK_CSS}`;
 		result = result.replace(/(<\/span>)(\s*)([：:])/g, '$1\uFEFF$2$3');
 		
 		return result;
+	}
+
+	// Replace <img> tags with text placeholders for WeChat copy (avoids base64 hang)
+	replaceImagesWithPlaceholders(html: string): string {
+		const parser = new DOMParser();
+		const doc = parser.parseFromString(html, 'text/html');
+		const images = doc.getElementsByTagName('img');
+		for (let i = images.length - 1; i >= 0; i--) {
+			const img = images[i];
+			if (!img) continue;
+			const src = img.getAttribute('src') || '';
+			// Keep external HTTP images; replace local/base64 ones
+			if (src.startsWith('http')) continue;
+			const alt = img.getAttribute('alt') || '图片';
+			const placeholder = doc.createElement('p');
+			placeholder.setAttribute('style', 'text-align:center;color:#999;font-size:14px;margin:16px 0');
+			placeholder.textContent = `【图片：${decodeURIComponent(src) || alt}】`;
+			img.replaceWith(placeholder);
+		}
+		return doc.body.innerHTML || doc.documentElement.innerHTML;
 	}
 
 	// 核心逻辑：解析 HTML，查找 img 标签，将本地路径转为 Base64
@@ -895,29 +917,12 @@ ${CALLOUT_FALLBACK_CSS}`;
 	}
 
 	async copyToClipboard(html: string, plainText: string) {
-		try {
-			// Try modern Clipboard API first
-			if (navigator.clipboard?.write) {
-				const data = [new ClipboardItem({
-					"text/html": new Blob([html], { type: "text/html" }),
-					"text/plain": new Blob([plainText], { type: "text/plain" })
-				})];
-				await navigator.clipboard.write(data);
-				return;
-			}
-		} catch {
-			// Fallback for environments where Clipboard API fails (some Electron versions)
-		}
-
-		// Legacy fallback: write HTML via execCommand
-		const listener = (e: ClipboardEvent) => {
-			e.clipboardData?.setData('text/html', html);
-			e.clipboardData?.setData('text/plain', plainText);
-			e.preventDefault();
-		};
-		document.addEventListener('copy', listener);
-		document.execCommand('copy');
-		document.removeEventListener('copy', listener);
+		const { clipboard } = require('electron');
+		clipboard.write({
+			text: plainText,
+			html: html,
+		});
+		new Notice('✅ 已复制！图片已替换为占位符，请手动替换。');
 	}
 
 	async loadSettings() {
