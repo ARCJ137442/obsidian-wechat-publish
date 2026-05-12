@@ -45,6 +45,7 @@ u      { text-decoration: underline; text-underline-offset: 0.15em; }
 
 /* ── 高亮 · 极淡底层色条，扫读指引 ── */
 mark, .highlight {
+  color: inherit;
   background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.08) 60%);
   padding: 0 2px;
 }
@@ -157,7 +158,7 @@ td { color: rgba(0,0,0,0.8); }
 .wechat-callout-quote    { border-left-color: #999; background: #f8f8f8; }
 .wechat-callout-quote    .wechat-callout-title { color: #666; background: #eee; }
 
-/* ── 暗色模式 ── */
+/* ── 暗色模式（仅用于 Preview；Copy 路径在 processAndCopy 中剥离 @media） ── */
 @media (prefers-color-scheme: dark) {
   .wechat-content { color: rgba(255, 255, 255, 0.85); }
   .wechat-content h1, .wechat-content h2, .wechat-content h3 { color: #e0e0e0; }

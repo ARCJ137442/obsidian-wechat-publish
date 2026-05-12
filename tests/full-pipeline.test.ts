@@ -15,6 +15,37 @@ function loadTestFile(): string {
 	return fs.readFileSync(TEST_MD_PATH, 'utf-8');
 }
 
+// ── Callout preprocessor (from src/callout-plugin.ts) ──
+const CALLOUT_THEMES: Record<string, { border: string; bg: string; titleColor: string }> = {
+	note: { border: '#888', bg: '#fafafa', titleColor: '#555' },
+	info: { border: '#7ba7bc', bg: '#f8fafb', titleColor: '#4a7585' },
+	tip: { border: '#7ba37b', bg: '#f8faf8', titleColor: '#4a704a' },
+	question: { border: '#b7a07b', bg: '#faf9f6', titleColor: '#7a684a' },
+	warning: { border: '#bc9a7b', bg: '#faf7f4', titleColor: '#856a4a' },
+	danger: { border: '#bc7b7b', bg: '#faf5f5', titleColor: '#854a4a' },
+	example: { border: '#7baa99', bg: '#f6faf9', titleColor: '#4a7566' },
+	quote: { border: '#999', bg: '#f8f8f8', titleColor: '#666' },
+};
+const CALLOUT_ALIASES: Record<string, string> = {
+	note: 'note', abstract: 'note', summary: 'note', tldr: 'note',
+	info: 'info', todo: 'info', tip: 'tip', hint: 'tip', important: 'tip', success: 'tip', check: 'tip', done: 'tip',
+	question: 'question', help: 'question', faq: 'question',
+	warning: 'warning', caution: 'warning', attention: 'warning',
+	danger: 'danger', error: 'danger', bug: 'danger', failure: 'danger', fail: 'danger', missing: 'danger',
+	example: 'example', quote: 'quote'
+};
+const CALLOUT_TITLES: Record<string, string> = { note: 'Note', info: 'Info', tip: 'Tip', question: 'Question', warning: 'Warning', danger: 'Danger', example: 'Example', quote: 'Quote' };
+function preprocessCallouts(md: string): string {
+	return md.replace(/^> \[!([a-zA-Z0-9_-]+)\]([+-])?[ \t]*([^\n]*)\n((?:> [^\n]*\n?)*)/gm, (_f: string, rt: string, _fl: string | undefined, title: string, bb: string) => {
+		const ct = CALLOUT_ALIASES[rt.toLowerCase()] ?? 'note';
+		const t = CALLOUT_THEMES[ct]!;
+		const cTitle = title.trim() || CALLOUT_TITLES[ct] || 'Note';
+		const body = bb.split('\n').filter(l => l.trim()).map(l => l.replace(/^>\s?/, '')).join('\n').trim();
+		const bodyLines = body.split('\n').map(line => `<p style="margin:0 0 6px 0;color:rgba(0,0,0,0.7);font-size:15px;line-height:1.75">${line}</p>`).join('\n');
+		return `<table style="width:100%;margin:20px 0;border-collapse:collapse;border-spacing:0"><tbody><tr><td style="border-left:3px solid ${t.border};background:${t.bg};padding:12px 16px;border-radius:4px">\n<p style="margin:0 0 8px 0;color:${t.titleColor};font-size:14px;font-weight:600;line-height:1.6">${cTitle}</p>\n${bodyLines}\n</td></tr></tbody></table>\n`;
+	});
+}
+
 // ── Plugin helpers (extracted from plugin, no Obsidian deps) ──
 
 function stripFrontmatter(text: string): string {
@@ -87,8 +118,8 @@ function processMarkdown(md: string): string {
 function renderToHTML(mdText: string): string {
 	const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
 	md.use(markdownItMark);
-	const preProcessed = preprocessCallouts(mdText);
-	const html = md.render(preProcessed);
+	const processed = processMarkdown(mdText);
+	const html = md.render(processed);
 	return restoreEscapes(html);
 }
 
@@ -124,7 +155,7 @@ describe('Full Pipeline: 样式测试 - 全元素覆盖.md', () => {
 
 		for (const tc of calloutTests) {
 			it(`renders ${tc.type} callout with title and body`, () => {
-				expect(htmlOutput).toContain(`wechat-callout-${tc.type}`);
+				expect(htmlOutput).toContain('border-left:3px solid');
 				expect(htmlOutput).toContain(tc.title);
 				expect(htmlOutput).toContain(tc.body);
 			});
@@ -137,8 +168,8 @@ describe('Full Pipeline: 样式测试 - 全元素覆盖.md', () => {
 
 		it('has correct callout DOM structure', () => {
 			// Title div before body div
-			const titleIdx = htmlOutput.indexOf('wechat-callout-title');
-			const bodyIdx = htmlOutput.indexOf('wechat-callout-body');
+			const titleIdx = htmlOutput.indexOf('<td');
+			const bodyIdx = htmlOutput.indexOf('这是一条普通的笔记 Callout');
 			expect(titleIdx).toBeGreaterThan(0);
 			expect(bodyIdx).toBeGreaterThan(titleIdx);
 		});

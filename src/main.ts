@@ -212,6 +212,7 @@ const DEFAULT_CSS = `
 
   /* 高亮 — 极淡底层色条 */
   mark, .highlight {
+    color: inherit;
     background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.08) 60%);
     padding: 0 2px;
   }
@@ -616,6 +617,8 @@ html.dark .wechat-content th{background:#2a2a2a;color:#aaa;border-color:#444}
 html.dark .wechat-content td{color:rgba(255,255,255,.75);border-color:#333}
 html.dark .wechat-content .caption{color:rgba(255,255,255,.3)}
 html.dark .wechat-callout-body p{color:rgba(255,255,255,.7)!important}
+html.dark table[style*="border-left"] td{background:rgba(255,255,255,0.05)!important}
+html.dark table[style*="border-left"] p{color:rgba(255,255,255,0.75)!important}
 html.dark .wechat-callout-note    { border-left-color: rgba(136,136,136,0.6)!important; background: rgba(136,136,136,0.12)!important }
 html.dark .wechat-callout-note    .wechat-callout-title { color: #aaa!important; background: rgba(136,136,136,0.2)!important }
 html.dark .wechat-callout-info    { border-left-color: rgba(123,167,188,0.6)!important; background: rgba(123,167,188,0.12)!important }
@@ -660,6 +663,8 @@ html.dark img{opacity:.9}
   html:not(.light) .wechat-content td{color:rgba(255,255,255,.75);border-color:#333}
   html:not(.light) .wechat-content .caption{color:rgba(255,255,255,.3)}
   html:not(.light) .wechat-callout-body p{color:rgba(255,255,255,.7)!important}
+  html:not(.light) table[style*="border-left"] td{background:rgba(255,255,255,0.05)!important}
+  html:not(.light) table[style*="border-left"] p{color:rgba(255,255,255,0.75)!important}
   html:not(.light) .wechat-callout-note    { border-left-color: rgba(136,136,136,0.6)!important; background: rgba(136,136,136,0.12)!important }
   html:not(.light) .wechat-callout-note    .wechat-callout-title { color: #aaa!important; background: rgba(136,136,136,0.2)!important }
   html:not(.light) .wechat-callout-info    { border-left-color: rgba(123,167,188,0.6)!important; background: rgba(123,167,188,0.12)!important }
@@ -738,7 +743,9 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 		try {
 			const { body: mdBody } = this.parseFrontmatter(markdown);
 			const bodyHtml = await this.processMarkdown(mdBody, currentPath);
-			const fullHtml = `<div class="wechat-content"><style>${this.getRenderCSS()}</style>${bodyHtml}</div>`;
+			// Strip @media blocks (WeChat handles dark mode on its own; they can't be juice-inlined)
+			const renderCSS = this.getRenderCSS().replace(/@media\s*\([^{]*\)\s*\{[^}]*\}/g, '');
+			const fullHtml = `<div class="wechat-content"><style>${renderCSS}</style>${bodyHtml}</div>`;
 			const inlinedHtml = juice(fullHtml);
 			// Use stripped rendered text as plain-text fallback, not raw markdown
 			const plainText = bodyHtml.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();

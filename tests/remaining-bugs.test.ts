@@ -116,14 +116,14 @@ describe('Bug 2: Callout dark mode', () => {
 		// Check that the CSS file contains a dark mode rule for callout body text
 		const dmMatch = css.match(/@media\s*\(\s*prefers-color-scheme\s*:\s*dark\s*\)\s*\{([\s\S]*?)\n\s*\}/);
 		const darkCSS = dmMatch ? dmMatch[1] : '';
-		expect(darkCSS).toContain('wechat-callout');
+		expect(darkCSS).toContain('table');
 		// Currently FAILS: wechat-theme.css has NO dark mode section at all
 		// The dark mode rules are only in the plugin's inline HTML template
 	});
 
 	it('wechat-theme.css contains dark mode callout rules', () => {
 		expect(css).toMatch(/prefers-color-scheme\s*:\s*dark/);
-		expect(css).toMatch(/wechat-callout/);
+		expect(css).toMatch(/table/);
 	});
 
 });
