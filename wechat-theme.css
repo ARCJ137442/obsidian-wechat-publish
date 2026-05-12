@@ -1,0 +1,205 @@
+/* ============================================
+   简约日记风 · 微信公众号排版主题
+   适用: 生活记录系列 / 个人博客 / 日记体
+   最后更新: 2026-05-12
+   ============================================ */
+
+/* ── 全局容器 ── */
+.wechat-content {
+  font-family: "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  font-size: 17px;
+  color: rgba(0, 0, 0, 0.9);
+  line-height: 1.75;
+  letter-spacing: 0.544px;
+  text-align: justify;
+  padding: 0;
+  max-width: 100%;
+}
+
+/* ── 标题 · 无色装饰，仅靠字号粗细区分层级 ── */
+h1 { font-size: 22px; font-weight: 600; color: #1a1a1a; margin: 0 0 24px 0; line-height: 1.4; }
+h2 { font-size: 19px; font-weight: 600; color: #1a1a1a; margin: 36px 0 16px 0; line-height: 1.4; }
+h3 { font-size: 17px; font-weight: 600; color: #333;     margin: 28px 0 12px 0; line-height: 1.4; }
+
+/* ── 段落 · 两端对齐，舒适间距 ── */
+p {
+  text-align: justify;
+  font-size: 17px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.9);
+  margin: 0 0 12px 0;
+  line-height: 1.75;
+  text-indent: 0;
+}
+/* 段内软换行：比自然行高低 30%，让连续行看起来更紧凑 */
+p br {
+  content: "";
+  display: block;
+  margin-top: -0.3em;
+}
+
+/* ── 强调 · 加粗不改色、斜体不装饰 ── */
+strong { font-weight: 600; }
+em     { font-style: italic; }
+u      { text-decoration: underline; text-underline-offset: 0.15em; }
+
+/* ── 高亮 · 极淡底层色条，扫读指引 ── */
+mark, .highlight {
+  background: linear-gradient(180deg, transparent 60%, rgba(0,0,0,0.08) 60%);
+  padding: 0 2px;
+}
+
+/* ── 引用块 · 灰色细线，退后一步 ── */
+blockquote {
+  margin: 1.2em 0;
+  padding: 4px 0 4px 10px;
+  border-left: 3px solid #dbdbdb;
+  color: rgba(0, 0, 0, 0.5);
+  font-size: 15px;
+  background: transparent;
+}
+blockquote p { margin: 0; color: rgba(0, 0, 0, 0.5); font-size: 15px; }
+
+/* ── 链接 · 淡蓝半透明，不打断阅读 ── */
+a {
+  color: #576b95;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(87, 107, 149, 0.3);
+}
+
+/* ── 列表 · 圆点无色，间距统一 ── */
+ul, ol { margin: 16px 0; padding-left: 24px; }
+li     { margin-bottom: 8px; line-height: 1.75; }
+ul ul, ol ol, ul ol, ol ul { margin: 8px 0; }
+
+/* ── 图片 · 居中无装饰 ── */
+img {
+  display: block;
+  margin: 24px auto;
+  max-width: 100%;
+  height: auto;
+}
+.caption {
+  text-align: center;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.4);
+  margin-bottom: 28px;
+  letter-spacing: 0.8px;
+}
+
+/* ── 代码 · 浅灰底 mono ── */
+pre {
+  background: #f7f7f7;
+  padding: 16px 18px;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 14px;
+  font-family: "SF Mono", Monaco, Consolas, monospace;
+  line-height: 1.65;
+  margin: 20px 0;
+  letter-spacing: 0;
+  color: #444;
+}
+code {
+  background: #f3f3f3;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 14px;
+  font-family: "SF Mono", Monaco, Consolas, monospace;
+  color: #444;
+  letter-spacing: 0;
+}
+pre code { background: transparent; padding: 0; }
+
+/* ── 水平线 ── */
+hr { border: none; border-top: 1px solid #eee; margin: 36px 0; }
+
+/* ── 表格 · 轻量边框 ── */
+table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 15px; }
+th, td { padding: 8px 12px; border: 1px solid #e8e8e8; text-align: left; }
+th { background: #fafafa; font-weight: 600; color: #555; }
+td { color: rgba(0,0,0,0.8); }
+
+/* ── Obsidian Callout · 降饱和配色 ── */
+.wechat-callout {
+  margin: 20px 0;
+  border-left: 3px solid #999;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fafafa;
+}
+.wechat-callout-title {
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: #555;
+  background: #f5f5f5;
+}
+.wechat-callout-body { padding: 12px 14px; }
+.wechat-callout-body p { margin: 0; color: rgba(0,0,0,0.7); font-size: 15px; }
+
+/* Callout 变体 */
+.wechat-callout-note     { border-left-color: #888; background: #fafafa; }
+.wechat-callout-note     .wechat-callout-title { color: #555; background: #f3f3f3; }
+.wechat-callout-info     { border-left-color: #7ba7bc; background: #f8fafb; }
+.wechat-callout-info     .wechat-callout-title { color: #4a7585; background: #eef4f6; }
+.wechat-callout-tip      { border-left-color: #7ba37b; background: #f8faf8; }
+.wechat-callout-tip      .wechat-callout-title { color: #4a704a; background: #eef3ee; }
+.wechat-callout-question { border-left-color: #b7a07b; background: #faf9f6; }
+.wechat-callout-question .wechat-callout-title { color: #7a684a; background: #f3f0ea; }
+.wechat-callout-warning  { border-left-color: #bc9a7b; background: #faf7f4; }
+.wechat-callout-warning  .wechat-callout-title { color: #856a4a; background: #f3eee6; }
+.wechat-callout-danger   { border-left-color: #bc7b7b; background: #faf5f5; }
+.wechat-callout-danger   .wechat-callout-title { color: #854a4a; background: #f3e6e6; }
+.wechat-callout-example  { border-left-color: #7baa99; background: #f6faf9; }
+.wechat-callout-example  .wechat-callout-title { color: #4a7566; background: #eaf3f0; }
+.wechat-callout-quote    { border-left-color: #999; background: #f8f8f8; }
+.wechat-callout-quote    .wechat-callout-title { color: #666; background: #eee; }
+
+/* ── 暗色模式 ── */
+@media (prefers-color-scheme: dark) {
+  .wechat-content { color: rgba(255, 255, 255, 0.85); }
+  .wechat-content h1, .wechat-content h2, .wechat-content h3 { color: #e0e0e0; }
+  .wechat-content p { color: rgba(255, 255, 255, 0.85); }
+  .wechat-content li { color: rgba(255, 255, 255, 0.85); }
+  .wechat-content blockquote, .wechat-content blockquote p { color: rgba(255, 255, 255, 0.5) !important; border-left-color: #555 !important; }
+  .wechat-content code { background: #333; color: #ddd; }
+  .wechat-content pre { background: #2a2a2a; color: #ddd; }
+  .wechat-content pre code { background: transparent; color: #ddd; }
+  .wechat-content hr { border-top-color: #333; }
+  .wechat-content a { color: #7ea8d4; }
+  .wechat-content mark, .wechat-content .highlight { color: rgba(255, 255, 255, 0.85); background: linear-gradient(180deg, transparent 60%, rgba(255,255,255,0.15) 60%); }
+  .wechat-content th { background: #2a2a2a; color: #aaa; border-color: #444; }
+  .wechat-content td { color: rgba(255, 255, 255, 0.75); border-color: #333; }
+  .wechat-content .caption { color: rgba(255, 255, 255, 0.3); }
+  .wechat-callout { background: #2a2a2a !important; }
+  .wechat-callout-body p { color: rgba(255, 255, 255, 0.7) !important; }
+  .wechat-callout-title { color: #aaa !important; background: #333 !important; }
+  .wechat-callout-note    { border-left-color: rgba(136,136,136,0.6) !important; background: rgba(136,136,136,0.12) !important; }
+  .wechat-callout-note    .wechat-callout-title { color: #aaa !important; background: rgba(136,136,136,0.2) !important; }
+  .wechat-callout-info    { border-left-color: rgba(123,167,188,0.6) !important; background: rgba(123,167,188,0.12) !important; }
+  .wechat-callout-info    .wechat-callout-title { color: #8db8c8 !important; background: rgba(123,167,188,0.2) !important; }
+  .wechat-callout-tip     { border-left-color: rgba(123,163,123,0.6) !important; background: rgba(123,163,123,0.12) !important; }
+  .wechat-callout-tip     .wechat-callout-title { color: #8db88d !important; background: rgba(123,163,123,0.2) !important; }
+  .wechat-callout-question{ border-left-color: rgba(183,160,123,0.6) !important; background: rgba(183,160,123,0.12) !important; }
+  .wechat-callout-question .wechat-callout-title { color: #c8b88d !important; background: rgba(183,160,123,0.2) !important; }
+  .wechat-callout-warning { border-left-color: rgba(188,154,123,0.6) !important; background: rgba(188,154,123,0.12) !important; }
+  .wechat-callout-warning .wechat-callout-title { color: #c8a88d !important; background: rgba(188,154,123,0.2) !important; }
+  .wechat-callout-danger  { border-left-color: rgba(188,123,123,0.6) !important; background: rgba(188,123,123,0.12) !important; }
+  .wechat-callout-danger  .wechat-callout-title { color: #c88d8d !important; background: rgba(188,123,123,0.2) !important; }
+  .wechat-callout-example { border-left-color: rgba(123,170,153,0.6) !important; background: rgba(123,170,153,0.12) !important; }
+  .wechat-callout-example .wechat-callout-title { color: #8dc8b0 !important; background: rgba(123,170,153,0.2) !important; }
+  .wechat-callout-quote   { border-left-color: rgba(153,153,153,0.6) !important; background: rgba(153,153,153,0.12) !important; }
+  .wechat-callout-quote   .wechat-callout-title { color: #aaa !important; background: rgba(153,153,153,0.2) !important; }
+  img { opacity: 0.9; }
+}
+
+/* ── 装饰分隔 · 柔和转场 ── */
+.emoji-deco {
+  text-align: center;
+  margin: 20px 0 28px;
+  font-size: 20px;
+  letter-spacing: 8px;
+  color: rgba(0,0,0,0.3);
+}

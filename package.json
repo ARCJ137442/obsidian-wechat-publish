@@ -25,13 +25,16 @@
 		"eslint-plugin-obsidianmd": "0.1.9",
 		"globals": "14.0.0",
 		"jiti": "2.6.1",
+		"linkedom": "^0.18.12",
 		"tslib": "2.4.0",
 		"typescript": "^5.8.3",
-		"typescript-eslint": "8.35.1"
+		"typescript-eslint": "8.35.1",
+		"vitest": "^4.1.6"
 	},
 	"dependencies": {
 		"juice": "^11.1.0",
 		"markdown-it": "^14.1.0",
+		"markdown-it-mark": "^4.0.0",
 		"obsidian": "latest"
 	}
 }
