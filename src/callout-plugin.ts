@@ -43,7 +43,7 @@ export default function preprocessCallouts(md: string): string {
 			.trim();
 
 		// WeChat-safe <table> structure with inline styles
-		return `<table class="wechat-callout-table wechat-callout-${cType}" style="width:100%;margin:20px 0;border-collapse:collapse;border-spacing:0"><tbody><tr><td style="border:none;border-left:3px solid ${theme.border};padding:12px 16px;border-radius:4px">
+		return `<table class="wechat-callout-table wechat-callout-${cType}" style="width:100%;margin:20px 0;border-collapse:collapse;border-spacing:0"><tbody><tr><td style="border:none;border-left:3px solid ${theme.border};background:${theme.bg};padding:12px 16px;border-radius:4px">
 <p style="margin:0 0 8px 0;color:${theme.titleColor};font-size:14px;font-weight:600;line-height:1.6">${cTitle}</p>
 ${body.split('\n').map(line => `<p style="margin:0 0 6px 0;font-size:15px;line-height:1.75">${line}</p>`).join('\n')}
 </td></tr></tbody></table>\n`;
