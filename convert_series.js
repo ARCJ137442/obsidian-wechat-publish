@@ -11,7 +11,7 @@ const crypto = require('crypto');
 const SRC = 'H:/A137442/Document/life-series/series';
 const DST = 'C:/Users/56506/AppData/Local/Temp/series-html-js';
 const CACHE_DIR = 'C:/Users/56506/AppData/Local/Temp/latex-cache';
-const CSS_PATH = 'H:/A137442/Document/life-series/wechat-theme.css';
+const CSS_PATH = 'H:/A137442/Document/life-series/publish/wechat-theme.css';
 
 if (!fs.existsSync(DST)) fs.mkdirSync(DST, { recursive: true });
 if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });

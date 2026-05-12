@@ -4,7 +4,7 @@ const MarkdownIt = require('markdown-it');
 const markdownItMark = require('markdown-it-mark');
 const juice = require('juice');
 
-let css = fs.readFileSync('H:/A137442/Document/life-series/wechat-theme.css', 'utf-8');
+let css = fs.readFileSync('H:/A137442/Document/life-series/publish/wechat-theme.css', 'utf-8');
 // Strip @media blocks (same as plugin)
 css = css.replace(/@media\s*\([^{]*\)\s*\{[^}]*\}/g, '');
 
