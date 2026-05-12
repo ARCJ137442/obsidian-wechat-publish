@@ -3,14 +3,14 @@
  * <table> blocks BEFORE markdown-it. WeChat preserves <table> but strips <div>.
  */
 const CALLOUT_THEMES: Record<string, { border: string; bg: string; titleColor: string; titleBg: string }> = {
-	'note':     { border: '#888',    bg: '#f5f3f7', titleColor: '#555',    titleBg: '#ede8f2' },
-	'info':     { border: '#7ba7bc', bg: '#f0f6f9', titleColor: '#4a7585', titleBg: '#e2eef4' },
-	'tip':      { border: '#7ba37b', bg: '#f0f6f2', titleColor: '#4a704a', titleBg: '#e2f0e6' },
-	'question': { border: '#b7a07b', bg: '#f7f4ec', titleColor: '#7a684a', titleBg: '#f0eade' },
-	'warning':  { border: '#bc9a7b', bg: '#f7f2ec', titleColor: '#856a4a', titleBg: '#f0e6d8' },
-	'danger':   { border: '#bc7b7b', bg: '#f7efef', titleColor: '#854a4a', titleBg: '#f0dfdf' },
-	'example':  { border: '#7baa99', bg: '#eff7f5', titleColor: '#4a7566', titleBg: '#dff0eb' },
-	'quote':    { border: '#999',    bg: '#f5f5f5', titleColor: '#666',    titleBg: '#eaeaea' },
+	'note':     { border: '#888',    bg: 'rgba(0,0,0,0.04)',      titleColor: '#555',    titleBg: 'rgba(0,0,0,0.06)' },
+	'info':     { border: '#7ba7bc', bg: 'rgba(123,167,188,0.08)', titleColor: '#4a7585', titleBg: 'rgba(123,167,188,0.12)' },
+	'tip':      { border: '#7ba37b', bg: 'rgba(123,163,123,0.08)', titleColor: '#4a704a', titleBg: 'rgba(123,163,123,0.12)' },
+	'question': { border: '#b7a07b', bg: 'rgba(183,160,123,0.08)', titleColor: '#7a684a', titleBg: 'rgba(183,160,123,0.12)' },
+	'warning':  { border: '#bc9a7b', bg: 'rgba(188,154,123,0.08)', titleColor: '#856a4a', titleBg: 'rgba(188,154,123,0.12)' },
+	'danger':   { border: '#bc7b7b', bg: 'rgba(188,123,123,0.08)', titleColor: '#854a4a', titleBg: 'rgba(188,123,123,0.12)' },
+	'example':  { border: '#7baa99', bg: 'rgba(123,170,153,0.08)', titleColor: '#4a7566', titleBg: 'rgba(123,170,153,0.12)' },
+	'quote':    { border: '#999',    bg: 'rgba(0,0,0,0.04)',      titleColor: '#666',    titleBg: 'rgba(0,0,0,0.06)' },
 };
 
 const CALLOUT_ALIASES: Record<string, string> = {
@@ -43,9 +43,9 @@ export default function preprocessCallouts(md: string): string {
 			.trim();
 
 		// WeChat-safe <table> structure with inline styles
-		return `<table class="wechat-callout-table wechat-callout-${cType}" style="width:100%;margin:20px 0;border-collapse:collapse;border-spacing:0"><tbody><tr><td style="border-left:3px solid ${theme.border};background:${theme.bg};padding:12px 16px;border-radius:4px">
+		return `<table class="wechat-callout-table wechat-callout-${cType}" style="width:100%;margin:20px 0;border-collapse:collapse;border-spacing:0"><tbody><tr><td style="border:none;border-left:3px solid ${theme.border};padding:12px 16px;border-radius:4px">
 <p style="margin:0 0 8px 0;color:${theme.titleColor};font-size:14px;font-weight:600;line-height:1.6">${cTitle}</p>
-${body.split('\n').map(line => `<p style="margin:0 0 6px 0;color:rgba(0,0,0,0.7);font-size:15px;line-height:1.75">${line}</p>`).join('\n')}
+${body.split('\n').map(line => `<p style="margin:0 0 6px 0;font-size:15px;line-height:1.75">${line}</p>`).join('\n')}
 </td></tr></tbody></table>\n`;
 	});
 }

@@ -813,7 +813,6 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
                 .replace(/\s+/g, " ")
                 .trim();
             await this.copyToClipboard(inlinedHtml, plainText);
-            new Notice("✅ 已复制！请直接粘贴到公众号。");
         } catch (error) {
             console.error(error);
             const msg = error instanceof Error ? error.message : String(error);
@@ -832,6 +831,11 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
         copy = copy.replace(/^\s*color:\s*[^;]+;\s*$/gm, "");
         copy = copy.replace(/color:\s*rgba?\([^)]+\)\s*!?\s*;?/g, "");
         copy = copy.replace(/color:\s*#[0-9a-fA-F]+\s*!?\s*;?/g, "");
+	        // Replace mark gradient with solid bg — WeChat converts rgba(0,0,0,*) ↔ rgba(255,255,255,*)
+	        copy = copy.replace(
+	            /background:\s*linear-gradient\([^)]+rgba\(0,\s*0,\s*0[^)]+\)[^)]*\)/g,
+	            "background-color: rgba(0,0,0,0.15)",
+	        );
         // Keep blockquote as fixed gray
         copy +=
             "\nblockquote, blockquote p { color: rgba(0,0,0,0.5) !important; }";
@@ -1010,7 +1014,7 @@ ${CALLOUT_FALLBACK_CSS}`;
             text: plainText,
             html: html,
         });
-        new Notice("✅ 已复制！图片已替换为占位符，请手动替换。");
+		new Notice("✅ 已复制！图片与LaTeX公式已替换为占位符，请手动替换。");
     }
 
     async loadSettings() {
