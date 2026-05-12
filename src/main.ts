@@ -763,6 +763,20 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 	// 将 ![[image.png]] 转换为 ![](image.png)
 		// ── CSS helper ──
 
+
+		getCopyCSS(): string {
+			const css = this.getRenderCSS();
+			const mediaIdx = css.indexOf("@media");
+			let copy = mediaIdx >= 0 ? css.substring(0, mediaIdx) : css;
+			// Strip ALL color props — WeChat dark mode crashes on "color: inherit"
+			copy = copy.replace(/^\s*color:\s*[^;]+;\s*$/gm, "");
+			copy = copy.replace(/color:\s*rgba?\([^)]+\)\s*!?\s*;?/g, "");
+			copy = copy.replace(/color:\s*#[0-9a-fA-F]+\s*!?\s*;?/g, "");
+			// Keep blockquote as fixed gray
+			copy += "\nblockquote, blockquote p { color: rgba(0,0,0,0.5) !important; }";
+			return copy;
+		}
+
 		getRenderCSS(): string {
 			const customCSS = this.settings.customCSS ?? '';
 			if (customCSS.includes('.wechat-callout')) return customCSS;
