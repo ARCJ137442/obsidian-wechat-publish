@@ -8,6 +8,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import MarkdownIt from 'markdown-it';
 import markdownItMark from 'markdown-it-mark';
 import fs from 'fs';
+import path from 'path';
 
 // ── Pipeline replica ──
 const ESC_MAP = new Map<string, string>();
@@ -110,20 +111,20 @@ describe('Bug 1: LaTeX $...$ → SVG', () => {
 });
 
 describe('Bug 2: Callout dark mode', () => {
-	const css = fs.readFileSync('H:/A137442/Document/life-series/wechat-theme.css', 'utf-8');
+	const css = fs.readFileSync(path.resolve(__dirname, '../wechat-theme.css'), 'utf-8');
 
 	it('dark mode has wechat-callout-body color rule', () => {
 		// Check that the CSS file contains a dark mode rule for callout body text
 		const dmMatch = css.match(/@media\s*\(\s*prefers-color-scheme\s*:\s*dark\s*\)\s*\{([\s\S]*?)\n\s*\}/);
 		const darkCSS = dmMatch ? dmMatch[1] : '';
-		expect(darkCSS).toContain('table');
+		expect(darkCSS).toContain('wechat-callout');
 		// Currently FAILS: wechat-theme.css has NO dark mode section at all
 		// The dark mode rules are only in the plugin's inline HTML template
 	});
 
 	it('wechat-theme.css contains dark mode callout rules', () => {
 		expect(css).toMatch(/prefers-color-scheme\s*:\s*dark/);
-		expect(css).toMatch(/table/);
+		expect(css).toMatch(/wechat-callout/);
 	});
 
 });
@@ -131,7 +132,7 @@ describe('Bug 2: Callout dark mode', () => {
 describe('Bug 3: <mark> dark mode', () => {
 
 	it('<mark> has explicit dark mode color rule in wechat-theme.css', () => {
-		const css = fs.readFileSync('H:/A137442/Document/life-series/wechat-theme.css', 'utf-8');
+		const css = fs.readFileSync(path.resolve(__dirname, '../wechat-theme.css'), 'utf-8');
 		// Check dark section for mark rule
 		const dmMatch = css.match(/@media\s*\(\s*prefers-color-scheme\s*:\s*dark\s*\)\s*\{([\s\S]*?)\n\s*\}/);
 		const darkCSS = dmMatch ? dmMatch[1] : '';

@@ -9,7 +9,7 @@ import fs from 'fs';
 import path from 'path';
 
 // ── Test data ──
-const TEST_MD_PATH = 'H:/A137442/Document/life-series/temp/样式测试 - 全元素覆盖.md';
+const TEST_MD_PATH = path.resolve(__dirname, 'fixtures/样式测试 - 全元素覆盖.md');
 
 function loadTestFile(): string {
 	return fs.readFileSync(TEST_MD_PATH, 'utf-8');
@@ -91,25 +91,6 @@ const TITLES: Record<string, string> = {
 	'note': 'Note', 'info': 'Info', 'tip': 'Tip', 'question': 'Question',
 	'warning': 'Warning', 'danger': 'Danger', 'example': 'Example', 'quote': 'Quote'
 };
-
-function preprocessCallouts(md: string): string {
-	// Match callout blocks: > [!TYPE] + optional title, then > body lines
-	const calloutBlockRe = /^> \[!([a-zA-Z0-9_-]+)\]([+-])?[ \t]*([^\n]*)\n((?:> [^\n]*\n?)*)/gm;
-
-	return md.replace(calloutBlockRe, (_full, rawType: string, _fold: string | undefined, title: string, bodyBlock: string) => {
-		const cType = CALLOUT_TYPES[rawType.toLowerCase()] ?? 'note';
-		const cTitle = title.trim() || TITLES[cType] || 'Note';
-		// Strip '> ' prefix from body lines
-		const body = bodyBlock
-			.split('\n')
-			.filter(line => line.trim())
-			.map(line => line.replace(/^>\s?/, ''))
-			.join('\n')
-			.trim();
-		return `<div class="wechat-callout wechat-callout-${cType}">\n<div class="wechat-callout-title">${cTitle}</div>\n<div class="wechat-callout-body">\n\n${body}\n\n</div>\n</div>\n`;
-	});
-}
-
 // ── Full pipeline ──
 function processMarkdown(md: string): string {
 	return mdUnescape(md);
@@ -119,7 +100,8 @@ function renderToHTML(mdText: string): string {
 	const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
 	md.use(markdownItMark);
 	const processed = processMarkdown(mdText);
-	const html = md.render(processed);
+	const preprocessed = preprocessCallouts(processed);
+	const html = md.render(preprocessed);
 	return restoreEscapes(html);
 }
 
