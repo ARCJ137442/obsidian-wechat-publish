@@ -13,8 +13,13 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const DEFAULT_VAULT = 'H:/A137442/Document/life-series';
-const vaultPath = process.argv[2] || DEFAULT_VAULT;
+const vaultPath = process.argv[2];
+
+if (!vaultPath) {
+	console.error('Usage: npm run deploy -- <vault-root>');
+	console.error('Example: npm run deploy -- H:/MyVault');
+	process.exit(1);
+}
 
 const pluginDir = path.join(vaultPath, '.obsidian', 'plugins', 'obsidian-wechat-publish');
 

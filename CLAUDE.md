@@ -8,8 +8,7 @@ Obsidian plugin for Markdown → WeChat Official Account publishing with "简约
 
 ```bash
 npm install
-npm run deploy -- <vault-path>   # e.g., npm run deploy -- H:/MyVault
-npm run deploy                    # defaults to life-series vault
+npm run deploy -- <vault-root>    # e.g., npm run deploy -- H:/MyVault
 ```
 
 ## Complementary: WeDown + Custom CSS

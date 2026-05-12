@@ -2,16 +2,16 @@
  * Callout preprocessor: converts Obsidian callout MD syntax to inline-styled
  * <table> blocks BEFORE markdown-it. WeChat preserves <table> but strips <div>.
  */
-const CALLOUT_THEMES: Record<string, { border: string; bg: string; titleColor: string; titleBg: string }> = {
-	'note':     { border: '#888',    bg: 'rgba(0,0,0,0.04)',      titleColor: '#555',    titleBg: 'rgba(0,0,0,0.06)' },
-	'info':     { border: '#7ba7bc', bg: 'rgba(123,167,188,0.08)', titleColor: '#4a7585', titleBg: 'rgba(123,167,188,0.12)' },
-	'tip':      { border: '#7ba37b', bg: 'rgba(123,163,123,0.08)', titleColor: '#4a704a', titleBg: 'rgba(123,163,123,0.12)' },
-	'question': { border: '#b7a07b', bg: 'rgba(183,160,123,0.08)', titleColor: '#7a684a', titleBg: 'rgba(183,160,123,0.12)' },
-	'warning':  { border: '#bc9a7b', bg: 'rgba(188,154,123,0.08)', titleColor: '#856a4a', titleBg: 'rgba(188,154,123,0.12)' },
-	'danger':   { border: '#bc7b7b', bg: 'rgba(188,123,123,0.08)', titleColor: '#854a4a', titleBg: 'rgba(188,123,123,0.12)' },
-	'example':  { border: '#7baa99', bg: 'rgba(123,170,153,0.08)', titleColor: '#4a7566', titleBg: 'rgba(123,170,153,0.12)' },
-	'quote':    { border: '#999',    bg: 'rgba(0,0,0,0.04)',      titleColor: '#666',    titleBg: 'rgba(0,0,0,0.06)' },
-};
+ const CALLOUT_THEMES: Record<string, { border: string; bg: string; titleColor: string; titleBg: string }> = {
+	'note':     { border: '#888',    bg: 'rgba(127,127,127,0.16)', titleColor: '#555',    titleBg: 'rgba(127,127,127,0.24)' },
+	'info':     { border: '#7ba7bc', bg: 'rgba(123,167,188,0.16)', titleColor: '#4a7585', titleBg: 'rgba(123,167,188,0.24)' },
+	'tip':      { border: '#7ba37b', bg: 'rgba(123,163,123,0.16)', titleColor: '#4a704a', titleBg: 'rgba(123,163,123,0.24)' },
+	'question': { border: '#b7a07b', bg: 'rgba(183,160,123,0.16)', titleColor: '#7a684a', titleBg: 'rgba(183,160,123,0.24)' },
+	'warning':  { border: '#bc9a7b', bg: 'rgba(188,154,123,0.16)', titleColor: '#856a4a', titleBg: 'rgba(188,154,123,0.24)' },
+	'danger':   { border: '#bc7b7b', bg: 'rgba(188,123,123,0.16)', titleColor: '#854a4a', titleBg: 'rgba(188,123,123,0.24)' },
+	'example':  { border: '#7baa99', bg: 'rgba(123,170,153,0.16)', titleColor: '#4a7566', titleBg: 'rgba(123,170,153,0.24)' },
+	'quote':    { border: '#999',    bg: 'rgba(127,127,127,0.16)', titleColor: '#666',    titleBg: 'rgba(127,127,127,0.24)' },
+ };
 
 const CALLOUT_ALIASES: Record<string, string> = {
 	'note': 'note', 'abstract': 'note', 'summary': 'note', 'tldr': 'note',
