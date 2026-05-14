@@ -14,7 +14,12 @@ import MarkdownIt from "markdown-it";
 // @ts-ignore - no types available
 import markdownItMark from "markdown-it-mark";
 import juice from "juice";
-import preprocessCallouts from "./callout-plugin";
+import preprocessCallouts, {
+    buildMergedCalloutData,
+    setupCalloutData,
+    getActiveThemes,
+    CalloutManagerJson,
+} from "./callout-plugin";
 import { handleTemplateRename } from "./template-rename";
 
 // ==========================================
@@ -101,12 +106,12 @@ const DEFAULT_CSS = `
     background: #f5f3f7;
   }
   .wechat-callout-title {
-    padding: 10px 14px;
+    padding: 0 !important;
     font-size: 14px;
     font-weight: 600;
     line-height: 1.6;
     color: #555;
-    background: #f5f5f5;
+    /* background 由内联 CSS 变量设置，勿在此处覆盖 */
   }
   .wechat-callout-body {
     padding: 12px 14px;
@@ -117,21 +122,21 @@ const DEFAULT_CSS = `
     font-size: 15px;
   }
   .wechat-callout-note td { border-left-color: #888; background: #f5f3f7; }
-  .wechat-callout-note    .wechat-callout-title { color: #555; background: #ede8f2; }
+  .wechat-callout-note    .wechat-callout-title { color: #555; }
   .wechat-callout-info td { border-left-color: #7ba7bc; background: #f0f6f9; }
-  .wechat-callout-info    .wechat-callout-title { color: #4a7585; background: #e2eef4; }
+  .wechat-callout-info    .wechat-callout-title { color: #4a7585; }
   .wechat-callout-tip td     { border-left-color: #7ba37b; background: #f0f6f2; }
-  .wechat-callout-tip     .wechat-callout-title { color: #4a704a; background: #e2f0e6; }
+  .wechat-callout-tip     .wechat-callout-title { color: #4a704a; }
   .wechat-callout-question td{ border-left-color: #b7a07b; background: #f7f4ec; }
-  .wechat-callout-question .wechat-callout-title { color: #7a684a; background: #f0eade; }
+  .wechat-callout-question .wechat-callout-title { color: #7a684a; }
   .wechat-callout-warning td { border-left-color: #bc9a7b; background: #f7f2ec; }
-  .wechat-callout-warning .wechat-callout-title { color: #856a4a; background: #f0e6d8; }
+  .wechat-callout-warning .wechat-callout-title { color: #856a4a; }
   .wechat-callout-danger td  { border-left-color: #bc7b7b; background: #f7efef; }
-  .wechat-callout-danger  .wechat-callout-title { color: #854a4a; background: #f0dfdf; }
+  .wechat-callout-danger  .wechat-callout-title { color: #854a4a; }
   .wechat-callout-example td { border-left-color: #7baa99; background: #eff7f5; }
-  .wechat-callout-example .wechat-callout-title { color: #4a7566; background: #dff0eb; }
+  .wechat-callout-example .wechat-callout-title { color: #4a7566; }
   .wechat-callout-quote td   { border-left-color: #999; background: #f5f5f5; }
-  .wechat-callout-quote   .wechat-callout-title { color: #666; background: #eaeaea; }
+  .wechat-callout-quote   .wechat-callout-title { color: #666; }
 
   /* 加粗文字 - 仅加粗，不改变颜色 */
   strong {
@@ -265,12 +270,11 @@ const CALLOUT_FALLBACK_CSS = `
 	    background: #faf7fd;
 	}
 	.wechat-callout-title {
-	    padding: 10px 14px;
-	    font-size: 15px;
-	    font-weight: 700;
+	    padding: 0 !important;
+	    font-size: 14px;
+	    font-weight: 600;
 	    line-height: 1.6;
-	    color: #5a3382;
-	    background: #f1e7fb;
+	    /* color/background 由内联 CSS 变量设置，勿在此处覆盖 */
 	}
 	.wechat-callout-body {
 	    padding: 12px 14px;
@@ -289,7 +293,6 @@ const CALLOUT_FALLBACK_CSS = `
 	}
 	.wechat-callout-note .wechat-callout-title {
 	    color: #5a3382;
-	    background: #f1e7fb;
 	}
 	.wechat-callout-info {
 	    border-left-color: #2eaadc;
@@ -297,7 +300,6 @@ const CALLOUT_FALLBACK_CSS = `
 	}
 	.wechat-callout-info .wechat-callout-title {
 	    color: #1f7599;
-	    background: #dff4fd;
 	}
 	.wechat-callout-tip {
 	    border-left-color: #2f9e44;
@@ -305,7 +307,6 @@ const CALLOUT_FALLBACK_CSS = `
 	}
 	.wechat-callout-tip .wechat-callout-title {
 	    color: #1f6d2f;
-	    background: #dff5e4;
 	}
 	.wechat-callout-question {
 	    border-left-color: #b7791f;
@@ -313,7 +314,6 @@ const CALLOUT_FALLBACK_CSS = `
 	}
 	.wechat-callout-question .wechat-callout-title {
 	    color: #8a5b17;
-	    background: #fcefd9;
 	}
 	.wechat-callout-warning {
 	    border-left-color: #e8913c;
@@ -321,7 +321,6 @@ const CALLOUT_FALLBACK_CSS = `
 	}
 	.wechat-callout-warning .wechat-callout-title {
 	    color: #b96f22;
-	    background: #fde9d4;
 	}
 	.wechat-callout-danger {
 	    border-left-color: #e03131;
@@ -329,7 +328,6 @@ const CALLOUT_FALLBACK_CSS = `
 	}
 	.wechat-callout-danger .wechat-callout-title {
 	    color: #b42323;
-	    background: #fde3e3;
 	}
 	.wechat-callout-example {
 	    border-left-color: #0ca678;
@@ -337,7 +335,6 @@ const CALLOUT_FALLBACK_CSS = `
 	}
 	.wechat-callout-example .wechat-callout-title {
 	    color: #087f5b;
-	    background: #d9f7ee;
 	}
 	.wechat-callout-quote {
 	    border-left-color: #868e96;
@@ -345,7 +342,6 @@ const CALLOUT_FALLBACK_CSS = `
 	}
 	.wechat-callout-quote .wechat-callout-title {
 	    color: #495057;
-	    background: #e9ecef;
 	}
 `;
 
@@ -444,6 +440,42 @@ function escapeHtml(text: string): string {
         .replace(/"/g, "&quot;");
 }
 
+/** 从 hsl(...) 或 hsla(...) 字符串中提取 H, S, L 数值 */
+function parseHsl(hslStr: string): { h: number; s: number; l: number } | null {
+    const match = hslStr.match(/hsla?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%/);
+    if (!match || !match[1] || !match[2] || !match[3]) return null;
+    return { h: parseInt(match[1]), s: parseInt(match[2]), l: parseInt(match[3]) };
+}
+
+/** 生成深色模式下所有自定义 callout 类型的 CSS 覆盖规则（CSS 自定义属性） */
+function generateDarkModeCustomCalloutCSS(): string {
+    const BUILTIN_TYPES = new Set(["note", "info", "tip", "question", "warning", "danger", "example", "quote"]);
+    const themes = getActiveThemes();
+    const lines: string[] = [];
+
+    for (const [type, theme] of Object.entries(themes)) {
+        if (BUILTIN_TYPES.has(type)) continue;
+        const parsed = parseHsl(theme.border);
+        if (!parsed) continue;
+        const { h, s } = parsed;
+        // 边框明度降 35（最低 15）
+        const borderL = Math.max(parsed.l - 35, 15);
+        // 标题文字明度：light ≤ 50 则提高，否则降低
+        const titleL = parsed.l <= 50
+            ? Math.min(parsed.l + 45, 85)
+            : Math.max(parsed.l - 40, 45);
+
+        lines.push(
+            `html.dark  .wechat-callout-${type} { --callout-border: hsl(${h},${s}%,${borderL}%) !important; --callout-title-color: hsl(${h},${s}%,${titleL}%) !important; --callout-bg: hsla(${h},${s}%,${borderL}%,0.12) !important; }`,
+            `html.dark  .wechat-callout-${type} .wechat-callout-title { background: transparent !important; padding: 0 !important; }`,
+            `html:not(.light) .wechat-callout-${type} { --callout-border: hsl(${h},${s}%,${borderL}%) !important; --callout-title-color: hsl(${h},${s}%,${titleL}%) !important; --callout-bg: hsla(${h},${s}%,${borderL}%,0.12) !important; }`,
+            `html:not(.light) .wechat-callout-${type} .wechat-callout-title { background: transparent !important; padding: 0 !important; }`,
+        );
+    }
+
+    return lines.join("\n");
+}
+
 // ──────── Plugin ────────
 
 interface WechatPluginSettings {
@@ -461,6 +493,7 @@ export default class WechatCopyPlugin extends Plugin {
 
     async onload() {
         await this.loadSettings();
+        await this.loadCalloutManagerThemes();
 
         // Command 1: Preview in Browser
         this.addCommand({
@@ -510,6 +543,56 @@ export default class WechatCopyPlugin extends Plugin {
             clearTimeout(this._previewServerTimeout);
             this._previewServer.close();
             this._previewServer = null;
+        }
+    }
+
+    /** 读取 callout-manager 配置并合并到渲染管道（联动 callout-manager） */
+    async loadCalloutManagerThemes(): Promise<void> {
+        console.log("[wechat-publish] loadCalloutManagerThemes: 开始执行");
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const vaultBase = (this.app.vault.adapter as any).getBasePath?.() ?? this.app.vault.adapter.getResourcePath("/");
+            const cmPath = `${vaultBase}/.obsidian/plugins/callout-manager/data.json`;
+            console.log("[wechat-publish] loadCalloutManagerThemes: vault 根目录:", vaultBase);
+            console.log("[wechat-publish] loadCalloutManagerThemes: 拼接后路径:", cmPath);
+
+            // 使用 Node.js fs 读取（Obsidian 插件上下文可用 require('fs')）
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const fs = require("fs") as typeof import("fs");
+            if (!fs.existsSync(cmPath)) {
+                console.log("[wechat-publish] loadCalloutManagerThemes: 文件不存在，跳过（这是正常的如果未安装 callout-manager）");
+                return;
+            }
+
+            const content = fs.readFileSync(cmPath, "utf-8");
+            console.log("[wechat-publish] loadCalloutManagerThemes: 文件读取成功，长度:", content.length);
+            const json: CalloutManagerJson = JSON.parse(content);
+            console.log("[wechat-publish] loadCalloutManagerThemes: JSON 解析成功, custom:", json.callouts?.custom);
+
+            const { themes, aliases } = buildMergedCalloutData(json);
+            setupCalloutData(themes, aliases);
+            console.log("[wechat-publish] loadCalloutManagerThemes: 合并完成，已注入 themes 和 aliases");
+
+            // 统计信息
+            const settings = json.callouts?.settings ?? {};
+            const customList = json.callouts?.custom ?? [];
+            const overridden = Object.keys(settings).filter((k) => k in themes);
+            const totalColors = Object.values(themes).filter((t) => t.border.startsWith("hsl")).length;
+
+            console.log(
+                `[wechat-publish] loadCalloutManagerThemes: 自定义类型=${customList.length}（${customList.join(", ") || "无"}）` +
+                `, 主题总数=${totalColors}, 被覆盖内置类型=${overridden.length}（${overridden.join(", ") || "无"}）`
+            );
+
+            new Notice(
+                `✅ Callout 主题已加载\n` +
+                `• 自定义类型：${customList.length} 种（${customList.join(", ") || "无"}）\n` +
+                `• 当前主题总数：${totalColors} 种\n` +
+                `• 被覆盖的内置类型：${overridden.length} 种（${overridden.join(", ") || "无"}）`,
+            );
+        } catch (e) {
+            console.error("[wechat-publish] loadCalloutManagerThemes: 错误:", e);
+            new Notice(`❌ Callout 主题加载失败: ${e}`);
         }
     }
 
@@ -691,24 +774,20 @@ html.dark .wechat-callout-body p{color:rgba(255,255,255,.7)!important}
 html.dark .wechat-callout-table td p{color:rgba(255,255,255,.75)!important}
 html.dark table[style*="border-left"] td{background:rgba(255,255,255,0.05)!important}
 html.dark table[style*="border-left"] p{color:rgba(255,255,255,0.75)!important}
-html.dark .wechat-callout-note td { border-left-color: rgba(136,136,136,0.6)!important; background: rgba(136,136,136,0.12)!important }
-html.dark .wechat-callout-note    .wechat-callout-title { color: #aaa!important; background: rgba(136,136,136,0.2)!important }
-html.dark .wechat-callout-info td { border-left-color: rgba(123,167,188,0.6)!important; background: rgba(123,167,188,0.12)!important }
-html.dark .wechat-callout-info    .wechat-callout-title { color: #8db8c8!important; background: rgba(123,167,188,0.2)!important }
-html.dark .wechat-callout-tip td { border-left-color: rgba(123,163,123,0.6)!important; background: rgba(123,163,123,0.12)!important }
-html.dark .wechat-callout-tip     .wechat-callout-title { color: #8db88d!important; background: rgba(123,163,123,0.2)!important }
-html.dark .wechat-callout-question td{ border-left-color: rgba(183,160,123,0.6)!important; background: rgba(183,160,123,0.12)!important }
-html.dark .wechat-callout-question .wechat-callout-title { color: #c8b88d!important; background: rgba(183,160,123,0.2)!important }
-html.dark .wechat-callout-warning td { border-left-color: rgba(188,154,123,0.6)!important; background: rgba(188,154,123,0.12)!important }
-html.dark .wechat-callout-warning .wechat-callout-title { color: #c8a88d!important; background: rgba(188,154,123,0.2)!important }
-html.dark .wechat-callout-danger td  { border-left-color: rgba(188,123,123,0.6)!important; background: rgba(188,123,123,0.12)!important }
-html.dark .wechat-callout-danger  .wechat-callout-title { color: #c88d8d!important; background: rgba(188,123,123,0.2)!important }
-html.dark .wechat-callout-example td { border-left-color: rgba(123,170,153,0.6)!important; background: rgba(123,170,153,0.12)!important }
-html.dark .wechat-callout-example .wechat-callout-title { color: #8dc8b0!important; background: rgba(123,170,153,0.2)!important }
-html.dark .wechat-callout-quote td   { border-left-color: rgba(153,153,153,0.6)!important; background: rgba(153,153,153,0.12)!important }
-html.dark .wechat-callout-quote   .wechat-callout-title { color: #aaa!important; background: rgba(153,153,153,0.2)!important }
+/* 内置 callout 深色模式：覆盖 CSS 变量，无 background */
+html.dark .wechat-callout-note    { --callout-border: rgba(136,136,136,0.6) !important; --callout-bg: rgba(136,136,136,0.12) !important; --callout-title-color: #aaa !important }
+html.dark .wechat-callout-info    { --callout-border: rgba(123,167,188,0.6) !important; --callout-bg: rgba(123,167,188,0.12) !important; --callout-title-color: #8db8c8 !important }
+html.dark .wechat-callout-tip     { --callout-border: rgba(123,163,123,0.6) !important; --callout-bg: rgba(123,163,123,0.12) !important; --callout-title-color: #8db88d !important }
+html.dark .wechat-callout-question{ --callout-border: rgba(183,160,123,0.6) !important; --callout-bg: rgba(183,160,123,0.12) !important; --callout-title-color: #c8b88d !important }
+html.dark .wechat-callout-warning  { --callout-border: rgba(188,154,123,0.6) !important; --callout-bg: rgba(188,154,123,0.12) !important; --callout-title-color: #c8a88d !important }
+html.dark .wechat-callout-danger   { --callout-border: rgba(188,123,123,0.6) !important; --callout-bg: rgba(188,123,123,0.12) !important; --callout-title-color: #c88d8d !important }
+html.dark .wechat-callout-example { --callout-border: rgba(123,170,153,0.6) !important; --callout-bg: rgba(123,170,153,0.12) !important; --callout-title-color: #8dc8b0 !important }
+html.dark .wechat-callout-quote   { --callout-border: rgba(153,153,153,0.6) !important; --callout-bg: rgba(153,153,153,0.12) !important; --callout-title-color: #aaa !important }
+/* 标题 span 无背景无 padding */
+html.dark .wechat-callout-title { background: transparent !important; padding: 0 !important }
 html.dark .wechat-content mark, html.dark .wechat-content .highlight { color: rgba(255,255,255,0.85) }
 html.dark img{opacity:.9}
+${generateDarkModeCustomCalloutCSS()}
 
 @media(prefers-color-scheme:dark){
   html:not(.light) body{background:#1a1a1a}
@@ -738,24 +817,19 @@ html.dark img{opacity:.9}
   html:not(.light) .wechat-callout-table td p{color:rgba(255,255,255,.75)!important}
   html:not(.light) table[style*="border-left"] td{background:rgba(255,255,255,0.05)!important}
   html:not(.light) table[style*="border-left"] p{color:rgba(255,255,255,0.75)!important}
-  html:not(.light) .wechat-callout-note td { border-left-color: rgba(136,136,136,0.6)!important; background: rgba(136,136,136,0.12)!important }
-  html:not(.light) .wechat-callout-note    .wechat-callout-title { color: #aaa!important; background: rgba(136,136,136,0.2)!important }
-  html:not(.light) .wechat-callout-info td { border-left-color: rgba(123,167,188,0.6)!important; background: rgba(123,167,188,0.12)!important }
-  html:not(.light) .wechat-callout-info    .wechat-callout-title { color: #8db8c8!important; background: rgba(123,167,188,0.2)!important }
-  html:not(.light) .wechat-callout-tip td     { border-left-color: rgba(123,163,123,0.6)!important; background: rgba(123,163,123,0.12)!important }
-  html:not(.light) .wechat-callout-tip     .wechat-callout-title { color: #8db88d!important; background: rgba(123,163,123,0.2)!important }
-  html:not(.light) .wechat-callout-question td{ border-left-color: rgba(183,160,123,0.6)!important; background: rgba(183,160,123,0.12)!important }
-  html:not(.light) .wechat-callout-question .wechat-callout-title { color: #c8b88d!important; background: rgba(183,160,123,0.2)!important }
-  html:not(.light) .wechat-callout-warning td { border-left-color: rgba(188,154,123,0.6)!important; background: rgba(188,154,123,0.12)!important }
-  html:not(.light) .wechat-callout-warning .wechat-callout-title { color: #c8a88d!important; background: rgba(188,154,123,0.2)!important }
-  html:not(.light) .wechat-callout-danger td  { border-left-color: rgba(188,123,123,0.6)!important; background: rgba(188,123,123,0.12)!important }
-  html:not(.light) .wechat-callout-danger  .wechat-callout-title { color: #c88d8d!important; background: rgba(188,123,123,0.2)!important }
-  html:not(.light) .wechat-callout-example td { border-left-color: rgba(123,170,153,0.6)!important; background: rgba(123,170,153,0.12)!important }
-  html:not(.light) .wechat-callout-example .wechat-callout-title { color: #8dc8b0!important; background: rgba(123,170,153,0.2)!important }
-  html:not(.light) .wechat-callout-quote td   { border-left-color: rgba(153,153,153,0.6)!important; background: rgba(153,153,153,0.12)!important }
-  html:not(.light) .wechat-callout-quote   .wechat-callout-title { color: #aaa!important; background: rgba(153,153,153,0.2)!important }
+  html:not(.light) .wechat-callout-note    { --callout-border: rgba(136,136,136,0.6) !important; --callout-bg: rgba(136,136,136,0.12) !important; --callout-title-color: #aaa !important }
+  html:not(.light) .wechat-callout-info    { --callout-border: rgba(123,167,188,0.6) !important; --callout-bg: rgba(123,167,188,0.12) !important; --callout-title-color: #8db8c8 !important }
+  html:not(.light) .wechat-callout-tip     { --callout-border: rgba(123,163,123,0.6) !important; --callout-bg: rgba(123,163,123,0.12) !important; --callout-title-color: #8db88d !important }
+  html:not(.light) .wechat-callout-question{ --callout-border: rgba(183,160,123,0.6) !important; --callout-bg: rgba(183,160,123,0.12) !important; --callout-title-color: #c8b88d !important }
+  html:not(.light) .wechat-callout-warning  { --callout-border: rgba(188,154,123,0.6) !important; --callout-bg: rgba(188,154,123,0.12) !important; --callout-title-color: #c8a88d !important }
+  html:not(.light) .wechat-callout-danger   { --callout-border: rgba(188,123,123,0.6) !important; --callout-bg: rgba(188,123,123,0.12) !important; --callout-title-color: #c88d8d !important }
+  html:not(.light) .wechat-callout-example { --callout-border: rgba(123,170,153,0.6) !important; --callout-bg: rgba(123,170,153,0.12) !important; --callout-title-color: #8dc8b0 !important }
+  html:not(.light) .wechat-callout-quote   { --callout-border: rgba(153,153,153,0.6) !important; --callout-bg: rgba(153,153,153,0.12) !important; --callout-title-color: #aaa !important }
+  /* 标题 span 无背景无 padding */
+  html:not(.light) .wechat-callout-title { background: transparent !important; padding: 0 !important }
   html:not(.light) .wechat-content mark, html:not(.light) .wechat-content .highlight { color: rgba(255,255,255,0.85) }
   html:not(.light) img{opacity:.9}
+  ${generateDarkModeCustomCalloutCSS()}
 }
 </style></head>
 <body>
@@ -848,10 +922,10 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
         const css = this.getRenderCSS();
         const mediaIdx = css.indexOf("@media");
         let copy = mediaIdx >= 0 ? css.substring(0, mediaIdx) : css;
-        // Strip ALL color props — WeChat dark mode crashes on "color: inherit"
+        // Strip color props ONLY at start of declaration (prevent matching *-color: etc.)
         copy = copy.replace(/^\s*color:\s*[^;]+;\s*$/gm, "");
-        copy = copy.replace(/color:\s*rgba?\([^)]+\)\s*!?\s*;?/g, "");
-        copy = copy.replace(/color:\s*#[0-9a-fA-F]+\s*!?\s*;?/g, "");
+        copy = copy.replace(/^\s*color:\s*rgba?\([^)]+\)\s*!?\s*;?\s*$/gm, "");
+        copy = copy.replace(/^\s*color:\s*#[0-9a-fA-F]+\s*!?\s*;?\s*$/gm, "");
 	        // Replace mark gradient with solid bg — WeChat converts rgba(0,0,0,*) ↔ rgba(255,255,255,*)
 	        copy = copy.replace(
 	            /background:\s*linear-gradient\([^)]+rgba\(0,\s*0,\s*0[^)]+\)[^)]*\)/g,

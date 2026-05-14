@@ -1,61 +1,96 @@
-# WeChat Public Account Publisher | 微信公众号文章发布助手
+# obsidian-wechat-publish
 
 [![Obsidian Plugin](https://img.shields.io/badge/Obsidian-Plugin-9654b5)](https://obsidian.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
 
-**One-click copy Markdown from Obsidian to WeChat Official Account with perfect formatting.** 
-
-一键将 Obsidian 里的 Markdown 文章转换并渲染为微信公众号格式，直接粘贴，无忧排版。
+One-click copy Markdown from Obsidian to WeChat Official Account with **"简约日记风"** minimalist diary theme.
 
 ---
 
-![Theme Mockup](assets/mockup.png)
+## Features
 
-## ✨ Features | 功能亮点
+- **One-click copy** — `Ctrl+P` → `Copy to WeChat` → paste in WeChat editor
+- **8 built-in callout types** with lucide SVG icons (note, tip, warning, danger, question, example, quote, info)
+- **Custom callout types** via `callout-manager.json` with custom colors and icons
+- **Math rendering** — LaTeX rendered as SVG in preview; placeholder text in copy mode
+- **Dark mode** — respects `prefers-color-scheme`, manual toggle in preview
+- **WeChat-safe copy** — CSS inlined via juice; transparent backgrounds and `!important` padding对抗微信编辑器 CSS 覆盖
 
-- **🚀 One-Click Copy**: Transform your Markdown into professional WeChat articles in a single click. (一键转换，秒出精美排版)
-- **🎨 Business Aesthetics**: Built-in "Purple Business" theme inspired by MDNice. (内置“紫色商务风”主题，专业、大气)
-- **🖼️ Automatic Image Handling**:
-    - Supports **Wiki Links** (`![[image.png]]`) and standard Markdown image links. (支持双向链图片和标准图片语法)
-    - Automatically converts local images to **Base64**, ensuring they appear correctly when pasted. (自动将本地图片转为 Base64，无需手动上传图床)
-- **💅 CSS Customization**: Fully customizable CSS via settings. (支持自定义 CSS 样式，打造你的专属风格)
-- **🧼 Juice Inlining**: Automatically inlines CSS for maximum compatibility with the WeChat editor. (自动启用 Juice 内联样式，确保粘贴后样式不丢失)
+## Theme: 简约日记风
 
-## 🛠️ How to Use | 如何使用
+Design philosophy: let the text speak. No decorative colors on headings, just whitespace and typography.
 
-1.  **Install** the plugin and enable it. (安装并启用插件)
-2.  Open the Markdown file you want to publish. (打开想要发布的 Markdown 文件)
-3.  Open the **Command Palette** (`Ctrl/Cmd + P`) and search for: `WeChat Public Account Publisher: Copy to WeChat`. (打开命令面板，搜索并运行“Copy to WeChat”)
-4.  **Paste** (`Ctrl/Cmd + V`) into the WeChat Official Account editor. (直接在微信公众号后台编辑器粘贴)
+| Parameter | Value |
+|-----------|-------|
+| Body font | PingFang SC, 17px, line-height 1.75 |
+| Text color | rgba(0,0,0,0.9) |
+| H1/H2 | 22px / 19px, font-weight 600, no color decoration |
+| Blockquote | 15px, left 3px #dbdbdb, semi-transparent |
+| Images | Full-width, centered, no border/radius/shadow |
 
-## ⚙️ Configuration | 配置项目
+## Architecture
 
-- **Reset Style**: Quickly revert to the default "Purple Business" theme. (一键重置为默认“紫色商务风”主题)
-- **Custom CSS**: Tweak the styles to match your brand identity. (可以在设置面板中直接修改和预览 CSS)
+```
+Obsidian MD
+  ↓ parseFrontmatter()       — strip YAML
+  ↓ convertWikiLinks()        — ![[img]] → ![](img)
+  ↓ mdUnescape()              — backslash escapes → placeholders
+  ↓ LaTeX $...$              — placeholders
+  ↓ preprocessCallouts()      — > [!TYPE] → <table> with lucide SVG icon
+  ↓ markdown-it (+mark)       — MD → HTML
+  ↓ restoreEscapes()          — placeholders → literal chars
+  ↓ renderLatexSvg()          — LaTeX → SVG (Preview only)
+  ↓
+  ├── forCopy=true  → replaceImages + LaTeX placeholder + juice inline
+  └── forCopy=false → Base64 images + SVG LaTeX + <style> block
+```
 
-## 📦 Installation | 安装方式
+## Install
 
-### Manual Installation (手动安装)
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [Releases](https://github.com/tinyking/obsidian-wechat-publish/releases) page.
-2. Create a folder named `obsidian-wechat-publish` in your vault's `.obsidian/plugins/` directory.
-3. Move the downloaded files into that folder.
-4. Reload Obsidian and enable the plugin.
+### Manual
 
----
+1. `npm install`
+2. `npm run build`
+3. Copy `main.js`, `manifest.json`, `styles.css` to vault `.obsidian/plugins/obsidian-wechat-publish/`
+4. Reload Obsidian and enable plugin
 
-## 👨‍💻 For Developers | 开发指南
+### Deploy to vault
 
-If you want to build this plugin on your own:
+```bash
+npm run deploy -- <vault-root>
+```
 
-1. Clone this repo.
-2. Run `npm install` to install dependencies.
-3. Run `npm run dev` for watch mode or `npm run build` for production build.
+Example: `npm run deploy -- H:/MyVault`
 
-### Tech Stack
-- [Typescript](https://www.typescriptlang.org/)
-- [esbuild](https://esbuild.github.io/)
-- [markdown-it](https://github.com/markdown-it/markdown-it)
-- [juice](https://github.com/Automattic/juice)
+## Commands
 
-## 📄 License | 许可证
-[MIT](LICENSE) © TinyKing
+| Command | Description |
+|---------|-------------|
+| `Preview in Browser` | Open rendered HTML in browser for visual verification |
+| `Copy to WeChat` | Copy WeChat-safe HTML to clipboard, ready to paste |
+
+## CSS Debugging
+
+WeChat rich text editor injects `.js_darkmode__2 { background: rgb(195,190,180) !important }` that overrides callout backgrounds. The copy mode handles this via **inline `style="background:transparent!important;padding:0!important"`** on callout title elements.
+
+When reporting CSS issues, use DevTools to inspect the element → check Styles/Computed → trace the computed source → send the HTML snippet + CSS rule to an agent.
+
+See `docs/preview-vs-copy.md` for the full comparison of preview vs copy rendering pipelines.
+
+## Tests
+
+```bash
+npx vitest run          # all 127 tests
+npx vitest run tests/   # specific file
+```
+
+## Tech Stack
+
+- [TypeScript](https://www.typescriptlang.org/) + [vitest](https://vitest.dev/)
+- [markdown-it](https://github.com/markdown-it/markdown-it) + [markdown-it-mark](https://github.com/markdown-it/markdown-it-mark)
+- [juice](https://github.com/Automattic/juice) — CSS inlining
+- [lucide-static](https://github.com/lucide-icons/lucide) — SVG icons
+
+## License
+
+[MIT](LICENSE)
