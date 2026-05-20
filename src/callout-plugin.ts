@@ -59,7 +59,11 @@ function rgbStringToHsl(rgb: string): { h: number; s: number; l: number } {
 		}
 	}
 
-	return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+	return {
+		h: Math.round(h * 360),
+		s: Math.round(s * 100),
+		l: Math.round(l * 100),
+	};
 }
 
 const CALLOUT_BG_ALPHA = 0.16;
@@ -74,8 +78,8 @@ import * as lucideStatic from "lucide-static";
 
 /** 将 lucide 图标名（kebab-case）规范化为 PascalCase
  * "lucide-list-todo" → "ListTodo"
- * "link"			→ "Link"
- * "ListTodo"		→ "ListTodo"
+ * "link"            → "Link"
+ * "ListTodo"        → "ListTodo"
  */
 function normalizeIconName(name: string): string {
 	const n = name.startsWith("lucide-") ? name.slice(7) : name;
@@ -104,7 +108,7 @@ export function getIconSvg(icon: string): string {
 	if (!svgStr) {
 		console.warn(
 			`[obsidian-wechat-publish] 图标 "${icon}" 未在 lucide-static 中找到或尚未导入。` +
-			` 当前版本仅支持部分图标，请检查 https://lucide.dev/icons 是否存在该图标。`,
+				` 当前版本仅支持部分图标，请检查 https://lucide.dev/icons 是否存在该图标。`,
 		);
 		_svgCache[icon] = "";
 		return "";
@@ -120,7 +124,11 @@ export function getIconSvg(icon: string): string {
 }
 
 /** 单一 RGB 颜色字符串 → 完整 CalloutTheme（HSL 派生） */
-export function themeFromCalloutColor(rgb: string, typeName: string, icon?: string): CalloutTheme {
+export function themeFromCalloutColor(
+	rgb: string,
+	typeName: string,
+	icon?: string,
+): CalloutTheme {
 	const { h, s, l } = rgbStringToHsl(rgb);
 	const title = typeName.charAt(0).toUpperCase() + typeName.slice(1);
 	return {
@@ -364,33 +372,28 @@ const CALLOUT_THEMES: Record<string, CalloutTheme> = {
 	},
 };
 
+/** 只对不同名称的做alias，默认包括恒等 */
 const CALLOUT_ALIASES: Record<string, string> = {
-	note: "note",
-	abstract: "note",
-	summary: "note",
-	tldr: "note",
-	info: "info",
-	todo: "info",
-	tip: "tip",
+	summary: "abstract",
+	tldr: "abstract",
+
 	hint: "tip",
-	important: "tip",
-	success: "tip",
-	check: "tip",
-	done: "tip",
-	question: "question",
+
+	check: "success",
+	done: "success",
+
 	help: "question",
 	faq: "question",
-	warning: "warning",
+
 	caution: "warning",
 	attention: "warning",
-	danger: "danger",
+
+	fail: "failure",
+	missing: "failure",
+
 	error: "danger",
-	bug: "danger",
-	failure: "danger",
-	fail: "danger",
-	missing: "danger",
-	example: "example",
-	quote: "quote",
+
+	cite: "quote",
 };
 
 // ==========================================
@@ -418,15 +421,30 @@ export function buildMergedCalloutData(json: CalloutManagerJson): {
 		if (!colorStr && !iconStr) continue;
 
 		// 跳过：不在 custom、不在内置theme、不在 builtin alias、且无 color（仅有 icon 后面单独处理）
-		if (!customList.includes(key) && !(key in CALLOUT_THEMES) && !(key in CALLOUT_ALIASES) && !colorStr) continue;
+		if (
+			!customList.includes(key) &&
+			!(key in CALLOUT_THEMES) &&
+			!(key in CALLOUT_ALIASES) &&
+			!colorStr
+		)
+			continue;
 
 		// 如果该类型在 settings 中有 icon 或 color → 创建独立 theme 入口 + self-alias
 		if (colorStr) {
-			themes[key as keyof typeof themes] = themeFromCalloutColor(colorStr, key, iconStr);
+			themes[key as keyof typeof themes] = themeFromCalloutColor(
+				colorStr,
+				key,
+				iconStr,
+			);
 		} else if (iconStr) {
 			// 仅 icon：复制 base theme 并替换 icon
 			const aliasOf = aliases[key];
-			const base = themes[key] ?? (aliasOf ? themes[aliasOf as keyof typeof themes] : undefined) ?? themes["note"]!;
+			const base =
+				themes[key] ??
+				(aliasOf
+					? themes[aliasOf as keyof typeof themes]
+					: undefined) ??
+				themes["note"]!;
 			themes[key as keyof typeof themes] = { ...base, icon: iconStr };
 		}
 
@@ -481,7 +499,8 @@ export default function preprocessCallouts(md: string): string {
 			bodyBlock: string,
 		) => {
 			const cType =
-				getActiveAliases()[rawType.toLowerCase()] ?? "note";
+				getActiveAliases()[rawType.toLowerCase()] ??
+				rawType.toLowerCase();
 			const theme =
 				getActiveThemes()[cType] ?? getActiveThemes()["note"]!;
 			const cTitle = title.trim() || theme.title || "Note";
