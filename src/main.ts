@@ -155,6 +155,13 @@ const DEFAULT_CSS = `
     border-bottom: 1px solid rgba(87, 107, 149, 0.3);
   }
 
+  /* 笔记链接占位符（无 link-wechat-mp 时） */
+  .wechat-note-link {
+    color: #576b95;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(87, 107, 149, 0.3);
+  }
+
   /* 列表 */
   ul, ol {
     margin: 16px 0;
@@ -638,7 +645,7 @@ export default class WechatCopyPlugin extends Plugin {
         forCopy = false,
     ): Promise<string> {
         // 1. WikiLink normalization
-        const normalized = this.convertWikiLinks(markdown);
+        const normalized = this.convertWikiLinks(markdown, currentPath);
 
         // 2. Backslash unescape → placeholders (before any parsing)
         const unescaped = mdUnescape(normalized);
@@ -809,6 +816,7 @@ ${generateDarkModeCustomCalloutCSS()}
   html:not(.light) .wechat-content pre code{background:transparent;color:#ddd}
   html:not(.light) .wechat-content hr{border-top-color:#333}
   html:not(.light) .wechat-content a{color:#7ea8d4}
+  html:not(.light) .wechat-content .wechat-note-link{color:#7ea8d4;border-bottom-color:rgba(126,168,212,0.3)}
   html:not(.light) .wechat-content mark,html:not(.light) .wechat-content .highlight{background:linear-gradient(180deg,transparent 60%,rgba(255,255,255,.15) 60%)}
   html:not(.light) .wechat-content th{background:#2a2a2a;color:#aaa;border-color:#444}
   html:not(.light) .wechat-content td{color:rgba(255,255,255,.75);border-color:#333}
@@ -944,30 +952,117 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 ${CALLOUT_FALLBACK_CSS}`;
     }
 
-    convertWikiLinks(markdown: string): string {
+    /**
+     * 解析笔记链接：查找目标笔记的 link-wechat-mp frontmatter
+     * @param linkpath 笔记路径或名称（从 wikilink 提取）
+     * @param sourcePath 当前笔记路径（用于相对路径解析）
+     * @returns 微信文章链接或 null
+     */
+    resolveNoteLink(linkpath: string, sourcePath: string): string | null {
+        try {
+            const file = this.app.metadataCache.getFirstLinkpathDest(
+                linkpath,
+                sourcePath,
+            );
+            if (!file) return null;
+
+            const cache = this.app.metadataCache.getFileCache(file);
+            if (!cache?.frontmatter) return null;
+
+            const wechatUrl = cache.frontmatter["link-wechat-mp"];
+            return typeof wechatUrl === "string" ? wechatUrl : null;
+        } catch {
+            return null;
+        }
+    }
+
+    convertWikiLinks(markdown: string, sourcePath: string): string {
+        // 1. 代码块保护：提取 ```...``` 和 `...` 用占位符替换
+        const codeBlocks: string[] = [];
+        let protectedMd = markdown
+            .replace(/```[\s\S]*?```/g, (m) => {
+                codeBlocks.push(m);
+                return `\uE000CODE${codeBlocks.length - 1}\uE000`;
+            })
+            .replace(/`[^`\n]+`/g, (m) => {
+                codeBlocks.push(m);
+                return `\uE000CODE${codeBlocks.length - 1}\uE000`;
+            });
+
+        // 2. 处理图片嵌入 ![[...]]（保持原有逻辑）
         const wikiImageRegex = /!\[\[([^\]]*?)\]\]/g;
-        return markdown.replace(
+        protectedMd = protectedMd.replace(
             wikiImageRegex,
-            (match: string, content: string) => {
+            (_match: string, content: string) => {
                 let fileName = content;
                 let altText = "";
-
-                // 处理管道符 | (用于改大小或别名)
                 if (content.includes("|")) {
                     const parts = content.split("|");
                     fileName = parts[0] ?? "";
                     altText = parts.slice(1).join("|");
                 }
-
-                // 去除首尾空格
                 fileName = fileName.trim();
-
-                // 关键点：URL 编码，处理文件名中的空格 "Image (1).png" -> "Image%20(1).png"
                 const encodedPath = encodeURI(fileName);
-
                 return `![${altText}](${encodedPath})`;
             },
         );
+
+        // 3. 处理笔记链接 [[...]]
+        const wikiLinkRegex = /\[\[([^\]]+?)\]\]/g;
+        protectedMd = protectedMd.replace(
+            wikiLinkRegex,
+            (_match: string, content: string) => {
+                let linkpath = content;
+                let displayText = content;
+
+                // 解析别名 [[note|alias]]
+                if (content.includes("|")) {
+                    const parts = content.split("|");
+                    linkpath = parts[0] ?? "";
+                    displayText = parts.slice(1).join("|");
+                }
+
+                // 解析标题 [[note#heading]]
+                if (linkpath.includes("#")) {
+                    const hashIdx = linkpath.indexOf("#");
+                    linkpath = linkpath.slice(0, hashIdx);
+                    // 如果没有别名，使用 heading 作为显示文本
+                    if (!content.includes("|")) {
+                        displayText = content.slice(content.indexOf("#") + 1);
+                    }
+                }
+
+                linkpath = linkpath.trim();
+                displayText = displayText.trim();
+
+                // 如果 linkpath 为空（如 [[#heading]]），跳过
+                if (!linkpath) return `[${displayText}]`;
+
+                // 查找目标笔记的 link-wechat-mp
+                const wechatUrl = this.resolveNoteLink(linkpath, sourcePath);
+
+                if (wechatUrl) {
+                    // 有微信链接：生成标准 markdown 链接
+                    return `[${displayText}](${wechatUrl})`;
+                } else {
+                    // 无微信链接：生成带样式的 span
+                    return `<span class="wechat-note-link">${displayText}</span>`;
+                }
+            },
+        );
+
+        // 4. 还原代码块
+        for (let i = 0; i < codeBlocks.length; i++) {
+            const block = codeBlocks[i];
+            if (block !== undefined) {
+                protectedMd = protectedMd.replace(
+                    `\uE000CODE${i}\uE000`,
+                    block,
+                );
+            }
+        }
+
+        return protectedMd;
     }
 
     // 修复：防止加粗文字和冒号被换行分开
