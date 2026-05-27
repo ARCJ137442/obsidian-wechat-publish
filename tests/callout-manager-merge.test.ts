@@ -131,7 +131,7 @@ describe("buildMergedCalloutData（真实 JSON）", () => {
         it("空 settings 时不报错，返回原始 themes", () => {
             const { themes: t2 } = buildMergedCalloutData({ callouts: { custom: [], settings: {} } });
             expect(t2["note"]).toBeDefined();
-            expect(t2["note"].border).toBe("#888");
+            expect(t2["note"].border).toBe("#086ddd"); // 内置 note 颜色
         });
 
         it("custom 列表有重复不报错", () => {

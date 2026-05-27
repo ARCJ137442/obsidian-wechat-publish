@@ -487,7 +487,7 @@ export function getActiveAliases(): typeof CALLOUT_ALIASES {
 
 export default function preprocessCallouts(md: string): string {
 	const re =
-		/^> \[!([a-zA-Z0-9_-]+)\]([+-])?[ \t]*([^\n]*)\n((?:> [^\n]*\n?)*)/gm;
+		/^> \[!([a-zA-Z0-9_-]+)\]([+-])?[ \t]*([^\n]*)(?:\n((?:> [^\n]*\n?)*))?/gm;
 
 	return md.replace(
 		re,
@@ -504,29 +504,63 @@ export default function preprocessCallouts(md: string): string {
 			const theme =
 				getActiveThemes()[cType] ?? getActiveThemes()["note"]!;
 			const cTitle = title.trim() || theme.title || "Note";
-			const body = bodyBlock
-				.split("\n")
-				.filter((line) => line.trim())
-				.map((line) => line.replace(/^>\s?/, ""))
-				.join("\n")
-				.trim();
 
-			// WeChat-safe <table> structure with inline styles
-			// 📌【2026-05-14 22:35:39】目前还有一个bug：callout内的列表、表格等尚未能被完整渲染，目前只能无损呈现纯文字
-			// CSS custom properties on table: dark mode can override them via --var-name: dark-value !important
-			const iconHtml = theme.icon
-				? `<span class="wechat-callout-icon" style="display:inline-flex;align-items:center;margin-right:8px;color:var(--callout-title-color)">${getIconSvg(theme.icon)}</span>`
+			// 提取 body 内容，去掉 > 前缀，保留原始 markdown
+			const body = bodyBlock
+				? bodyBlock
+						.split("\n")
+						.filter((line) => line.trim())
+						.map((line) => line.replace(/^>\s?/, ""))
+						.join("\n")
+						.trim()
 				: "";
-			return `<table class="wechat-callout-table wechat-callout-${cType}" style="--callout-border:${theme.border};--callout-bg:${theme.bg};--callout-title-color:${theme.titleColor};--callout-title-bg:${theme.titleBg};width:100%;margin:20px 0;border-collapse:collapse;border-spacing:0"><tbody><tr><td style="border:none;border-left:3px solid var(--callout-border);background:var(--callout-bg);padding:12px 16px;border-radius:4px">
-<p style="margin:0 0 4px 0;font-size:14px;font-weight:600;line-height:1.6"><span class="wechat-callout-title" style="color:var(--callout-title-color);padding:0!important;background:transparent!important">${iconHtml}${cTitle}</span></p>
-${body
-	.split("\n")
-	.map(
-		(line) =>
-			`<p style="margin:0 0 6px 0;font-size:15px;line-height:1.75">${line}</p>`,
-	)
-	.join("\n")}
-</td></tr></tbody></table>\n`;
+
+			// 用 HTML 注释作为标记，标题作为第一行 markdown 内容
+			// 空行确保标记和内容是独立的 HTML 块
+			return `<!--CALLOUT_START:${cType}-->\n\n${cTitle}\n\n${body}\n\n<!--CALLOUT_END-->`;
 		},
 	);
+}
+
+/**
+ * 后处理 callout：将 HTML 注释标记转换为最终的 table 结构
+ * 在 markdown-it 渲染后调用
+ *
+ * 输入格式（HTML）：
+ * <!--CALLOUT_START:note-->
+ * <p>标题内容（可能包含 <strong>、<em> 等）</p>
+ * <p>正文内容</p>
+ * <!--CALLOUT_END-->
+ *
+ * 输出格式（HTML）：
+ * <table class="wechat-callout-table ...">
+ *   <p><span class="wechat-callout-title">标题内容</span></p>
+ *   <div class="wechat-callout-body">正文内容</div>
+ * </table>
+ */
+export function postprocessCallouts(html: string): string {
+	const re = /<!--CALLOUT_START:([^>]+)-->\s*([\s\S]*?)\s*<!--CALLOUT_END-->/g;
+
+	return html.replace(re, (_full, cType, bodyContent) => {
+		const theme = getActiveThemes()[cType] ?? getActiveThemes()["note"]!;
+		const iconHtml = theme.icon
+			? `<span class="wechat-callout-icon" style="display:inline-flex;align-items:center;margin-right:8px;color:var(--callout-title-color)">${getIconSvg(theme.icon)}</span>`
+			: "";
+
+		// 分离标题和正文：标题是第一个 <p> 标签的内容
+		let titleHtml = theme.title || "Note";
+		let contentHtml = bodyContent;
+
+		const titleMatch = bodyContent.match(/^<p>([\s\S]*?)<\/p>/);
+		if (titleMatch) {
+			titleHtml = titleMatch[1];
+			// 移除第一个 <p> 标签，剩余作为正文
+			contentHtml = bodyContent.slice(titleMatch[0].length).trim();
+		}
+
+		return `<table class="wechat-callout-table wechat-callout-${cType}" style="--callout-border:${theme.border};--callout-bg:${theme.bg};--callout-title-color:${theme.titleColor};--callout-title-bg:${theme.titleBg};width:100%;margin:20px 0;border-collapse:collapse;border-spacing:0"><tbody><tr><td style="border:none;border-left:3px solid var(--callout-border);background:var(--callout-bg);padding:12px 16px;border-radius:4px">
+<p style="margin:0 0 4px 0;font-size:14px;font-weight:600;line-height:1.6"><span class="wechat-callout-title" style="color:var(--callout-title-color);padding:0!important;background:transparent!important">${iconHtml}${titleHtml}</span></p>
+<div class="wechat-callout-body" style="margin:0;padding:0">${contentHtml}</div>
+</td></tr></tbody></table>\n`;
+	});
 }

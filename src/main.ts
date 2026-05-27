@@ -15,6 +15,7 @@ import MarkdownIt from "markdown-it";
 import markdownItMark from "markdown-it-mark";
 import juice from "juice";
 import preprocessCallouts, {
+    postprocessCallouts,
     buildMergedCalloutData,
     setupCalloutData,
     getActiveThemes,
@@ -672,6 +673,7 @@ export default class WechatCopyPlugin extends Plugin {
         md.use(markdownItMark); // ==highlight== → <mark>
         const preprocessed = preprocessCallouts(withLatexPH);
         let html = md.render(preprocessed);
+        html = postprocessCallouts(html); // ← 恢复 callout 结构
 
         // 5. Restore backslash escapes
         html = restoreEscapes(html);
@@ -679,16 +681,13 @@ export default class WechatCopyPlugin extends Plugin {
         // 6. Fix bold-colon break
         html = this.preventBreakAfterStrong(html);
 
-        // 7. Callout transform
-        // 2.5 Preprocess callouts: MD syntax → HTML blocks before markdown-it
-
-        // 8. Resolve LaTeX placeholders → SVG (async)
+        // 7. Resolve LaTeX placeholders → SVG (async)
         for (const [ph, formula] of latexMap) {
             const svg = await renderLatexSvg(formula, forCopy);
             html = html.split(ph).join(svg);
         }
 
-        // 9. Image → Base64
+        // 8. Image → Base64
         html = forCopy
             ? this.replaceImagesWithPlaceholders(html)
             : await this.processImagesToBase64(html, currentPath);
