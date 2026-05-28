@@ -2,97 +2,145 @@
 
 [![Obsidian Plugin](https://img.shields.io/badge/Obsidian-Plugin-9654b5)](https://obsidian.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-1.0.6-blue)](https://github.com/ARCJ137442/obsidian-wechat-publish)
 
-One-click copy Markdown from Obsidian to WeChat Official Account with **"简约日记风"** minimalist diary theme.
+将 Obsidian Markdown 文章一键复制到微信公众号，支持"简约日记风"排版主题。
+
+> Forked from [tinyking/obsidian-wechat-publish](https://github.com/tinyking/obsidian-wechat-publish)，在此基础上进行了功能增强和样式重写。
+
+---
+
+## 效果预览
+
+![Callout 预览效果](https://raw.githubusercontent.com/ARCJ137442/obsidian-wechat-publish/main/assets/preview.png)
+
+Callout 内部支持完整的 markdown 语法：**粗体**、*斜体*、`行内代码`、列表等。
 
 ---
 
 ## Features
 
-- **One-click copy** — `Ctrl+P` → `Copy to WeChat` → paste in WeChat editor
-- **8 built-in callout types** with lucide SVG icons (note, tip, warning, danger, question, example, quote, info)
-- **Custom callout types** via `callout-manager.json` with custom colors and icons
-- **Callout inline markdown** — bold, italic, highlight, lists, code blocks, tables inside callouts
-- **Math rendering** — LaTeX rendered as SVG in preview; placeholder text in copy mode
-- **Dark mode** — respects `prefers-color-scheme`, manual toggle in preview
-- **WeChat-safe copy** — CSS inlined via juice; transparent backgrounds and `!important` padding对抗微信编辑器 CSS 覆盖
+- **一键复制** — `Ctrl+P` → `Copy to WeChat` → 粘贴到微信编辑器
+- **8 种 Callout 类型** — note、tip、warning、danger、question、example、quote、info，全部带 lucide SVG 图标
+- **Callout 内部 Markdown** — 粗体、斜体、高亮、列表、代码块、表格、链接
+- **自定义 Callout** — 通过 `callout-manager.json` 添加自定义类型和颜色
+- **LaTeX 公式** — 预览版渲染为 SVG，复制版显示占位符
+- **暗色模式** — 支持系统偏好和手动切换
+- **Wikilinks 转换** — `[[note]]` 自动转换为微信链接
+- **预览功能** — 浏览器中预览渲染效果
 
-## Theme: 简约日记风
+---
 
-Design philosophy: let the text speak. No decorative colors on headings, just whitespace and typography.
+## Installation
 
-| Parameter | Value |
-|-----------|-------|
-| Body font | PingFang SC, 17px, line-height 1.75 |
-| Text color | rgba(0,0,0,0.9) |
-| H1/H2 | 22px / 19px, font-weight 600, no color decoration |
-| Blockquote | 15px, left 3px #dbdbdb, semi-transparent |
-| Images | Full-width, centered, no border/radius/shadow |
+### 手动安装
 
-## Architecture
+1. 下载 `main.js`、`manifest.json`、`styles.css`
+2. 复制到 Obsidian vault 的 `.obsidian/plugins/obsidian-wechat-publish/` 目录
+3. 重启 Obsidian，启用插件
 
-```
-Obsidian MD
-  ↓ parseFrontmatter()       — strip YAML
-  ↓ convertWikiLinks()        — ![[img]] → ![](img)
-  ↓ mdUnescape()              — backslash escapes → placeholders
-  ↓ LaTeX $...$              — placeholders
-  ↓ preprocessCallouts()      — > [!TYPE] → <!--CALLOUT_START:type--> + markdown
-  ↓ markdown-it (+mark)       — MD → HTML (callout body 内的 markdown 被解析)
-  ↓ postprocessCallouts()     — <!--CALLOUT_START--> → <table> with lucide SVG icon
-  ↓ restoreEscapes()          — placeholders → literal chars
-  ↓ renderLatexSvg()          — LaTeX → SVG (Preview only)
-  ↓
-  ├── forCopy=true  → replaceImages + LaTeX placeholder + juice inline
-  └── forCopy=false → Base64 images + SVG LaTeX + <style> block
-```
-
-## Install
-
-### Manual
-
-1. `npm install`
-2. `npm run build`
-3. Copy `main.js`, `manifest.json`, `styles.css` to vault `.obsidian/plugins/obsidian-wechat-publish/`
-4. Reload Obsidian and enable plugin
-
-### Deploy to vault
+### 开发者安装
 
 ```bash
-npm run deploy -- <vault-root>
+git clone https://github.com/ARCJ137442/obsidian-wechat-publish.git
+cd obsidian-wechat-publish
+npm install
+npm run build
 ```
 
-Example: `npm run deploy -- H:/MyVault`
+---
 
-## Commands
+## Usage
 
-| Command | Description |
-|---------|-------------|
-| `Preview in Browser` | Open rendered HTML in browser for visual verification |
-| `Copy to WeChat` | Copy WeChat-safe HTML to clipboard, ready to paste |
+### 基本用法
 
-## CSS Debugging
+1. 在 Obsidian 中打开文章
+2. `Ctrl+P` → 输入 `Copy to WeChat`
+3. 粘贴到微信公众号编辑器
 
-WeChat rich text editor injects `.js_darkmode__2 { background: rgb(195,190,180) !important }` that overrides callout backgrounds. The copy mode handles this via **inline `style="background:transparent!important;padding:0!important"`** on callout title elements.
+### Callout 语法
 
-When reporting CSS issues, use DevTools to inspect the element → check Styles/Computed → trace the computed source → send the HTML snippet + CSS rule to an agent.
+```markdown
+> [!note] 标题
+> 正文内容，支持 **粗体**、*斜体*、`代码` 等
 
-See `docs/preview-vs-copy.md` for the full comparison of preview vs copy rendering pipelines.
+> [!tip] 提示
+> - 列表项 1
+> - 列表项 2
+```
 
-## Tests
+### 支持的 Markdown 语法
+
+| 语法 | 效果 |
+|------|------|
+| `**粗体**` | **粗体** |
+| `*斜体*` | *斜体* |
+| `==高亮==` | ==高亮== |
+| `` `代码` `` | `代码` |
+| `[链接](url)` | [链接](url) |
+| `- 列表` | 列表 |
+| `> 引用` | 引用 |
+
+---
+
+## Fork 致谢
+
+本项目 fork 自 [tinyking/obsidian-wechat-publish](https://github.com/tinyking/obsidian-wechat-publish)，原作者 TinyKing 提供了基础的 Obsidian → 微信复制功能。
+
+在此基础上，我们进行了以下增强：
+
+| 功能 | 原版 | 本 Fork |
+|------|------|---------|
+| CSS 样式 | 橙色主题 | 简约日记风（无色装饰） |
+| Callout 支持 | 基础 CSS | 8 种类型 + SVG 图标 + 内部 Markdown |
+| LaTeX | ❌ | ✅ |
+| 暗色模式 | ❌ | ✅ |
+| Wikilinks | ❌ | ✅ |
+| 预览功能 | ❌ | ✅ |
+| 测试 | ❌ | 161 个 vitest 测试 |
+
+感谢 TinyKing 的原创工作。
+
+---
+
+## Development
 
 ```bash
-npx vitest run          # all 161 tests
-npx vitest run tests/   # specific file
+npm run dev          # 开发模式（监听文件变化）
+npm run build        # 生产构建
+npm run lint         # 代码检查
+npm run deploy -- <vault-root>  # 部署到 vault
 ```
+
+### 测试
+
+```bash
+npx vitest run       # 运行所有测试
+```
+
+### 项目结构
+
+```
+src/
+  main.ts            # 插件主入口
+  callout-plugin.ts  # Callout 预处理和后处理
+  template-fill.ts   # 模板填充
+  template-rename.ts # 模板重命名
+tests/               # 161 个测试用例
+```
+
+---
 
 ## Tech Stack
 
-- [TypeScript](https://www.typescriptlang.org/) + [vitest](https://vitest.dev/)
-- [markdown-it](https://github.com/markdown-it/markdown-it) + [markdown-it-mark](https://github.com/markdown-it/markdown-it-mark)
-- [juice](https://github.com/Automattic/juice) — CSS inlining
-- [lucide-static](https://github.com/lucide-icons/lucide) — SVG icons
+- [TypeScript](https://www.typescriptlang.org/)
+- [markdown-it](https://github.com/markdown-it/markdown-it) — Markdown 解析
+- [juice](https://github.com/Automattic/juice) — CSS 内联
+- [lucide-static](https://github.com/lucide-icons/lucide) — SVG 图标
+- [vitest](https://vitest.dev/) — 测试框架
+
+---
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) — Copyright (c) 2024 TinyKing
