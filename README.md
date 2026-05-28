@@ -12,6 +12,7 @@ One-click copy Markdown from Obsidian to WeChat Official Account with **"简约�
 - **One-click copy** — `Ctrl+P` → `Copy to WeChat` → paste in WeChat editor
 - **8 built-in callout types** with lucide SVG icons (note, tip, warning, danger, question, example, quote, info)
 - **Custom callout types** via `callout-manager.json` with custom colors and icons
+- **Callout inline markdown** — bold, italic, highlight, lists, code blocks, tables inside callouts
 - **Math rendering** — LaTeX rendered as SVG in preview; placeholder text in copy mode
 - **Dark mode** — respects `prefers-color-scheme`, manual toggle in preview
 - **WeChat-safe copy** — CSS inlined via juice; transparent backgrounds and `!important` padding对抗微信编辑器 CSS 覆盖
@@ -36,8 +37,9 @@ Obsidian MD
   ↓ convertWikiLinks()        — ![[img]] → ![](img)
   ↓ mdUnescape()              — backslash escapes → placeholders
   ↓ LaTeX $...$              — placeholders
-  ↓ preprocessCallouts()      — > [!TYPE] → <table> with lucide SVG icon
-  ↓ markdown-it (+mark)       — MD → HTML
+  ↓ preprocessCallouts()      — > [!TYPE] → <!--CALLOUT_START:type--> + markdown
+  ↓ markdown-it (+mark)       — MD → HTML (callout body 内的 markdown 被解析)
+  ↓ postprocessCallouts()     — <!--CALLOUT_START--> → <table> with lucide SVG icon
   ↓ restoreEscapes()          — placeholders → literal chars
   ↓ renderLatexSvg()          — LaTeX → SVG (Preview only)
   ↓
@@ -80,7 +82,7 @@ See `docs/preview-vs-copy.md` for the full comparison of preview vs copy renderi
 ## Tests
 
 ```bash
-npx vitest run          # all 127 tests
+npx vitest run          # all 161 tests
 npx vitest run tests/   # specific file
 ```
 
