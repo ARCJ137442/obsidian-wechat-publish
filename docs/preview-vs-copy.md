@@ -5,7 +5,7 @@
 - **触发**：Obsidian `Ctrl+P` → `Preview in Browser`
 - **输出**：完整 HTML 页面，包含 `<style>` 块，暗色模式 `@media (prefers-color-scheme: dark)`、手机/桌面切换、浅色/深色按钮
 - **图片**：Base64 内嵌（本地 HTTP 服务可渲染）
-- **公式**：通过 codecogs API 渲染为 SVG 图片
+- **公式**：KaTeX 本地渲染为 HTML（系统字体，不依赖外部服务）
 - **颜色**：`getRenderCSS()` 完整 CSS，`--callout-*` CSS 变量定义在 HTML 内联 style 中
 - **目的**：发布前视觉验证——在浏览器里看效果好不好
 
@@ -26,7 +26,7 @@
 | CSS 方式 | `<style>` 块 + `@media` | juice 内联 `style=""` |
 | 暗色模式 | `@media (prefers-color-scheme: dark)` + 手动按钮 | 微信自动管理（CSS 变量抗覆盖） |
 | 图片 | Base64 渲染 | 文本占位符 |
-| 公式 | SVG 渲染 | 文本占位符 |
+| 公式 | KaTeX HTML 渲染 | 文本占位符 |
 | WeChat CSS 覆盖 | 不涉及 | 内联 `!important` 对抗 |
 | 剪贴板 | 不涉及 | Electron 原生 API |
 

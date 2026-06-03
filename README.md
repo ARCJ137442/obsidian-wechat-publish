@@ -2,7 +2,7 @@
 
 [![Obsidian Plugin](https://img.shields.io/badge/Obsidian-Plugin-9654b5)](https://obsidian.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.0.6-blue)](https://github.com/ARCJ137442/obsidian-wechat-publish)
+[![Version](https://img.shields.io/badge/version-1.0.7-blue)](https://github.com/ARCJ137442/obsidian-wechat-publish)
 
 将 Obsidian Markdown 文章一键复制到微信公众号，支持"简约日记风"排版主题。
 
@@ -97,7 +97,7 @@ npm run build
 | 暗色模式 | ❌ | ✅ |
 | Wikilinks | ❌ | ✅ |
 | 预览功能 | ❌ | ✅ |
-| 测试 | ❌ | 161 个 vitest 测试 |
+| 测试 | ❌ | 162 个 vitest 测试 |
 
 感谢 TinyKing 的原创工作。
 
@@ -126,7 +126,7 @@ src/
   callout-plugin.ts  # Callout 预处理和后处理
   template-fill.ts   # 模板填充
   template-rename.ts # 模板重命名
-tests/               # 161 个测试用例
+tests/               # 162 个测试用例
 ```
 
 ---
