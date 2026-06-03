@@ -21,7 +21,7 @@ import preprocessCallouts, {
     getActiveThemes,
     CalloutManagerJson,
 } from "./callout-plugin";
-import { handleTemplateRename } from "./template-rename";
+import { handleTemplateRename, renameFileSafely } from "./template-rename";
 
 // ==========================================
 // 默认样式：仿微信公众号爆款文章风格
@@ -535,11 +535,12 @@ export default class WechatCopyPlugin extends Plugin {
                     return;
                 }
                 await handleTemplateRename(
-                    view.file ?? this.app.workspace.getActiveFile(),
-                    this.parseFrontmatter.bind(this),
-                    (file) => this.app.vault.read(file),
-                    (file, newPath) => this.app.vault.rename(file, newPath),
-                );
+					view.file ?? this.app.workspace.getActiveFile(),
+					this.parseFrontmatter.bind(this),
+					(file) => this.app.vault.read(file),
+					(file, newPath) =>
+						renameFileSafely(this.app, file, newPath),
+				);
             },
         });
 

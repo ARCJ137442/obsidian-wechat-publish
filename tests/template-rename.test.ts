@@ -2,8 +2,14 @@
  * TDD: Template rename — fillTemplate function
  * Ported from series.template.md 模板填充()
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import type { App, TFile } from 'obsidian';
 import { fillTemplate } from '../src/template-fill';
+import { renameFileSafely } from '../src/template-rename';
+
+vi.mock('obsidian', () => ({
+	Notice: vi.fn(),
+}));
 
 describe('fillTemplate — Python-style string formatting', () => {
 
@@ -89,5 +95,31 @@ describe('fillTemplate — Python-style string formatting', () => {
 
 	it('returns value as-is for non-string values without format', () => {
 		expect(fillTemplate('{n}', { n: 42 })).toBe('42');
+	});
+});
+
+describe('renameFileSafely', () => {
+	it('uses Obsidian FileManager.renameFile so references can be updated', async () => {
+		const renameFile = vi.fn<(
+			file: TFile,
+			newPath: string,
+		) => Promise<void>>().mockResolvedValue(undefined);
+		const vaultRename = vi.fn<(
+			file: TFile,
+			newPath: string,
+		) => Promise<void>>().mockResolvedValue(undefined);
+		const app = {
+			fileManager: { renameFile },
+			vault: { rename: vaultRename },
+		} as unknown as App;
+		const file = { path: 'series/draft.md' } as TFile;
+
+		await renameFileSafely(app, file, 'series/001 启｜新的开始.md');
+
+		expect(renameFile).toHaveBeenCalledWith(
+			file,
+			'series/001 启｜新的开始.md',
+		);
+		expect(vaultRename).not.toHaveBeenCalled();
 	});
 });

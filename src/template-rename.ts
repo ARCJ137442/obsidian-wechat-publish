@@ -2,8 +2,16 @@
  * Quick Template Rename — fill template from frontmatter and rename file.
  * Command handler with Obsidian API dependencies.
  */
-import { Notice, TFile } from "obsidian";
+import { Notice, type App, type TFile } from "obsidian";
 import { fillTemplate } from "./template-fill";
+
+export async function renameFileSafely(
+	app: App,
+	file: TFile,
+	newPath: string,
+): Promise<void> {
+	await app.fileManager.renameFile(file, newPath);
+}
 
 /**
  * Handle the "Quick Template Rename" command.
