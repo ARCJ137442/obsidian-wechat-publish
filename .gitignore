@@ -34,3 +34,6 @@ convert_series.py
 main.js
 tests/callout-plugin.js
 temp-test/
+
+# Crash dumps
+*.stackdump
