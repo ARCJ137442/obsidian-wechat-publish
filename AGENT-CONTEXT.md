@@ -34,7 +34,7 @@
 
 | 问题 | 严重度 | 说明 |
 |------|--------|------|
-| LaTeX 复制版无法显示 | 中 | 复制到微信后公式不显示（当前用文本占位符） |
+| LaTeX 复制版待验证 | 中 | rollup + mathjax-full SVG 模块已实现，Node.js 测试通过（path-based SVG），待 Obsidian 环境验证 |
 | Callout 暗色模式不支持 | 低 | Bug 2: wechat-theme.css 缺少暗色模式规则（**已决定暂不修复**，半透明效果已适配） |
 | `<mark>` 暗色模式不支持 | 低 | Bug 3: 高亮文字暗色模式下不可见 |
 
@@ -60,7 +60,30 @@
 | MathJax SVG（动态 import） | ❌ 失败 | `handlers` 未定义，esbuild 打包后全局状态丢失 |
 | MathJax SVG（静态 import） | ❌ 失败 | 插件加载时尝试加载不存在的模块 |
 | KaTeX HTML + juice 内联 CSS | ⚠️ 部分成功 | CSS 定位规则复杂，juice 无法正确内联 |
-| KaTeX 预览 + 文本占位符复制 | ✅ 当前方案 | 可用但不理想 |
+| KaTeX 预览 + 文本占位符复制 | ✅ 旧方案 | 可用但不理想 |
+| Obsidian `renderMath()` API | ❌ 复制版不可行 | 输出 CHTML（HTML+自定义字体），微信无 MathJax 字体 |
+| **rollup + mathjax-full SVG** | ✅ **当前方案** | rollup `commonjs()` 保留全局状态；`@rollup/plugin-replace` 消除 `eval('require')` |
+
+### 当前方案（2026-06-03 实现）
+
+- **预览版**：KaTeX 渲染 HTML（系统字体，效果好）
+- **复制版**：MathJax SVG（rollup 打包，输出 `<path>` 自包含 SVG）
+
+**构建管线**：
+1. esbuild: `src/main.ts` → `main.js`（排除 `mathjax-full`）
+2. esbuild (transpile only): `src/mathjax-svg.ts` → `.mathjax-svg-temp.js`
+3. rollup: `.mathjax-svg-temp.js` + `commonjs()` + `replace(PACKAGE_VERSION)` → `mathjax-svg.js` (2.5MB CJS)
+4. 运行时: `require(vaultBase + '/.obsidian/plugins/obsidian-wechat-publish/mathjax-svg.js')`
+
+**关键修复**：
+- `@rollup/plugin-replace` 替换 `PACKAGE_VERSION` → 常量 `"3.2.1"`，防止 MathJax 的 `eval('require')` 在 Electron 中执行
+- `require()` 使用绝对路径（vault base path），因为 Electron 的 `__dirname` 指向 Obsidian 安装目录
+
+**Node.js 验证**：
+```
+tex2svg('E = mc^2', false) → SVG 3705 bytes, <path> ✅, <text> ❌
+tex2svg('ax^2 + bx + c = 0', true) → SVG 4938 bytes, <path> ✅
+```
 
 ### 当前方案
 
@@ -93,7 +116,7 @@
 
 ### 高优先级
 
-- [ ] **LaTeX 复制版渲染**：寻找能在 esbuild 中工作的 LaTeX-to-SVG 方案
+- [ ] **LaTeX 复制版 Obsidian 验证**：Node.js 测试通过，需要在 Obsidian 环境中实际验证 SVG 粘贴到微信后的显示效果
 - [ ] **`<mark>` 暗色模式修复**：确保高亮文字在暗色模式下可见
 
 ### 中优先级
@@ -121,10 +144,9 @@ Obsidian MD (.md)
   ↓ preprocessCallouts()     — > [!TYPE] → <table> with lucide SVG
   ↓ markdown-it (+mark)      — MD → HTML
   ↓ restoreEscapes()         — 占位符 → 字面字符
-  ↓ renderLatexSvg()         — LaTeX → SVG（仅预览）
   ↓
-  ├── forCopy=true  → replaceImages + 占位符 + juice 内联
-  └── forCopy=false → Base64 图片 + SVG LaTeX + <style> 块
+  ├── forCopy=true  → MathJax SVG (<path> glyphs) + replaceImages + juice 内联
+  └── forCopy=false → KaTeX HTML + Base64 图片 + <style> 块
 ```
 
 ### 关键文件
@@ -222,6 +244,12 @@ npm run deploy -- <vault-root>  # 部署到 Obsidian 仓库
 
 ### 2026-06-03
 
+- ✅ **LaTeX 复制版 SVG 渲染**：rollup + mathjax-full 生成 path-based SVG
+  - 混合构建：esbuild（主插件）+ rollup（mathjax-svg.js，2.5MB）
+  - `@rollup/plugin-replace` 消除 `eval('require')`，防止 Electron 环境报错
+  - `tex2svg()` 输出自包含 `<path>` SVG，Node.js 测试通过
+  - 运行时 `require()` 使用 vault 绝对路径（Electron `__dirname` 指向 Obsidian 安装目录）
+- ✅ **Obsidian `renderMath()` API 调查**：输出 CHTML（依赖 MathJax 字体），不适用于微信复制版
 - ✅ **CI 修复**：ESLint 错误从 65 → 0，CI 现在全部通过
   - 放宽 `no-console` 规则，保留调试日志（Obsidian DevTools 需要）
   - ESLint 配置：为 `main.ts` 启用 Node.js globals，允许 `require` 调用

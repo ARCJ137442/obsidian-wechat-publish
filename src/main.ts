@@ -8,6 +8,8 @@ import {
 	PluginSettingTab,
 	Setting,
 	TFile,
+	renderMath,
+	finishRenderMath,
 } from "obsidian";
 import MarkdownIt, { type PluginSimple } from "markdown-it";
 // @ts-ignore - no types available
@@ -392,12 +394,11 @@ function restoreEscapes(text: string): string {
 	return result;
 }
 
-/** Clean SVG for WeChat: strip xlink, use currentColor, pt units. */
-/** KaTeX rendering with system fonts (WeChat compatible) */
+/** KaTeX rendering with system fonts (preview mode) */
 const katex = require("katex") as typeof import("katex");
 
-// CSS to override KaTeX fonts with system fonts (for WeChat compatibility)
-const KATEX_SYSTEM_FONTS_CSS = `.katex,.katex *{font-family:'Times New Roman','STIX',serif !important;}`;
+// MathJax SVG renderer (copy mode) — built separately with rollup
+let mathjaxSvgModule: { tex2svg: (formula: string, display: boolean) => string } | null = null;
 
 function renderKatexFormula(formula: string, displayMode = false): string {
 	try {
@@ -411,16 +412,7 @@ function renderKatexFormula(formula: string, displayMode = false): string {
 			/<span class="katex-html"[^>]*>[\s\S]*?<\/span>\s*<\/span>/,
 		);
 		if (htmlMatch) {
-			let html = htmlMatch[0];
-
-			// Add essential inline styles for WeChat compatibility
-			// KaTeX relies on complex CSS that doesn't inline well, so we add critical styles
-			html = html.replace(
-				/<span class="katex-html"/,
-				'<span class="katex-html" style="font-size:1.21em;line-height:1.2;position:relative;display:inline-block"',
-			);
-
-			return html;
+			return htmlMatch[0];
 		}
 
 		// Fallback: return full output
@@ -429,23 +421,6 @@ function renderKatexFormula(formula: string, displayMode = false): string {
 		console.warn("[wechat-publish] KaTeX render failed:", e);
 		return `<code>${escapeHtml(formula)}</code>`;
 	}
-}
-
-/** Get KaTeX CSS for inlining (used in copy pipeline) */
-function getKatexCss(): string {
-	return KATEX_SYSTEM_FONTS_CSS;
-}
-
-/** Render LaTeX for Preview (KaTeX) or Copy (text placeholder). */
-async function renderLatexSvg(
-	formula: string,
-	forCopy = false,
-	displayMode = false,
-): Promise<string> {
-	// 复制版使用文本占位符（MathJax SVG 在 esbuild 打包环境中无法工作）
-	if (forCopy) return `【公式：${escapeHtml(formula)}】`;
-
-	return renderKatexFormula(formula, displayMode);
 }
 
 function escapeHtml(text: string): string {
@@ -563,6 +538,51 @@ export default class WechatCopyPlugin extends Plugin {
 					(file, newPath) =>
 						renameFileSafely(this.app, file, newPath),
 				);
+			},
+		});
+
+		// Command 4: Debug — Test Obsidian built-in renderMath()
+		this.addCommand({
+			id: "debug-render-math",
+			name: "Debug: Test renderMath",
+			editorCallback: async () => {
+				console.log("=== [renderMath Debug Start] ===");
+
+				const formulas = [
+					{ src: "E = mc^2", display: false },
+					{ src: "ax^2 + bx + c = 0", display: true },
+					{ src: "\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}", display: false },
+				];
+
+				for (const { src, display } of formulas) {
+					console.log(`\n--- Formula: ${src} (display=${display}) ---`);
+					const el = renderMath(src, display);
+					await finishRenderMath();
+
+					console.log("tagName:", el.tagName);
+					console.log("className:", el.className);
+					console.log("outerHTML length:", el.outerHTML.length);
+					console.log("innerHTML (first 500):", el.innerHTML.substring(0, 500));
+
+					// Check if it contains SVG
+					const hasSvg = el.innerHTML.includes("<svg");
+					const hasPath = el.innerHTML.includes("<path");
+					const hasText = el.innerHTML.includes("<text");
+					const hasUse = el.innerHTML.includes("<use");
+					console.log("Contains: SVG=", hasSvg, "path=", hasPath, "text=", hasText, "use=", hasUse);
+
+					// Check for CHTML (CommonHTML)
+					const hasMjx = el.innerHTML.includes("mjx-");
+					console.log("Contains mjx- classes:", hasMjx);
+
+					// Dump full outerHTML for first formula only (to avoid log spam)
+					if (src === "E = mc^2") {
+						console.log("FULL outerHTML:", el.outerHTML);
+					}
+				}
+
+				console.log("\n=== [renderMath Debug End] ===");
+				new Notice("renderMath debug complete — check DevTools console (Ctrl+Shift+I)");
 			},
 		});
 
@@ -730,7 +750,12 @@ export default class WechatCopyPlugin extends Plugin {
 
 		// 7. Resolve LaTeX placeholders → HTML (async)
 		for (const [ph, { formula, displayMode }] of latexMap) {
-			const rendered = await renderLatexSvg(formula, forCopy, displayMode);
+			let rendered: string;
+			if (forCopy) {
+				rendered = this.renderLatexForCopy(formula, displayMode);
+			} else {
+				rendered = renderKatexFormula(formula, displayMode);
+			}
 			html = html.split(ph).join(rendered);
 		}
 
@@ -952,7 +977,7 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 			);
 			// Strip @media blocks (WeChat handles dark mode on its own; they can't be juice-inlined)
 			const renderCSS = this.getCopyCSS();
-			const fullHtml = `<div class="wechat-content"><style>${renderCSS}${getKatexCss()}</style>${bodyHtml}</div>`;
+			const fullHtml = `<div class="wechat-content"><style>${renderCSS}</style>${bodyHtml}</div>`;
 			const inlinedHtml = juice(fullHtml);
 			// Use stripped rendered text as plain-text fallback, not raw markdown
 			const plainText = bodyHtml
@@ -1108,6 +1133,35 @@ ${CALLOUT_FALLBACK_CSS}`;
 
 		return protectedMd;
 	}
+
+
+		/** Render LaTeX to MathJax SVG (path-based, WeChat compatible) */
+		renderLatexForCopy(formula: string, displayMode: boolean): string {
+			if (!mathjaxSvgModule) {
+				try {
+					const vaultBase = (this.app.vault.adapter as any).getBasePath?.() as string | undefined; // eslint-disable-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+					if (vaultBase) {
+						const fs = require('fs') as typeof import('fs');
+						const modulePath = vaultBase + '/.obsidian/plugins/obsidian-wechat-publish/mathjax-svg.js';
+						if (fs.existsSync(modulePath)) {
+							// eslint-disable-next-line @typescript-eslint/no-require-imports
+							mathjaxSvgModule = require(modulePath);
+							console.log('[wechat-publish] mathjax-svg.js loaded successfully');
+						}
+					}
+				} catch (e) {
+					console.warn('[wechat-publish] Failed to load mathjax-svg.js:', e);
+				}
+			}
+			if (mathjaxSvgModule) {
+				try {
+					return mathjaxSvgModule.tex2svg(formula, displayMode);
+				} catch (e) {
+					console.warn('[wechat-publish] MathJax SVG render failed:', e);
+				}
+			}
+			return '【公式：' + escapeHtml(formula) + '】';
+		}
 
 	// 修复：防止加粗文字和冒号被换行分开
 	preventBreakAfterStrong(html: string): string {

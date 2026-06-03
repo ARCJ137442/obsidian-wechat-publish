@@ -35,7 +35,7 @@ execSync('npm run build', { stdio: 'inherit', cwd: __dirname + '/..' });
 
 // Deploy
 fs.mkdirSync(pluginDir, { recursive: true });
-for (const file of ['main.js', 'manifest.json', 'styles.css']) {
+for (const file of ['main.js', 'manifest.json', 'styles.css', 'mathjax-svg.js']) {
 	fs.copyFileSync(path.join(__dirname, '..', file), path.join(pluginDir, file));
 	console.log(`  ${file} → ${pluginDir}`);
 }

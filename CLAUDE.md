@@ -2,7 +2,7 @@
 
 Obsidian plugin for Markdown → WeChat Official Account publishing with "简约日记风" minimalist diary theme.
 
-**Version**: v1.0.6 · **Tests**: 161 vitest (TDD-driven) · **License**: MIT
+**Version**: v1.0.7 · **Tests**: 162 vitest (TDD-driven) · **License**: MIT
 
 ## Quick Start
 
@@ -11,6 +11,35 @@ npm install
 npm run deploy -- <vault-root>    # e.g., npm run deploy -- H:/MyVault
 npm run build                     # production build
 ```
+
+## Development Rules
+
+### Deploy only after testing
+
+**先测试，后部署。** 部署到 Obsidian vault 之前，目标功能必须先在本地验证通过：
+
+1. `npx vitest run` — 单元测试全通过
+2. 目标功能在 Node.js 环境中实际运行（如 `node -e "const {tex2svg} = require('./mathjax-svg.js'); console.log(tex2svg('E=mc^2'))"`）
+3. 确认输出格式正确后，再 `npm run deploy`
+
+**Why:** 部署后发现问题是最高成本的调试路径（需要重载 Obsidian + 手动操作验证），而在 Node.js 中验证只需要几秒钟。
+
+### Build pipeline
+
+项目使用混合构建：
+- **esbuild**: 主插件 `src/main.ts` → `main.js`（排除 `mathjax-full`）
+- **rollup**: MathJax SVG 模块 `src/mathjax-svg.ts` → `mathjax-svg.js`（需要 `commonjs()` 插件保留 MathJax 全局状态）
+- **@rollup/plugin-replace**: 替换 `PACKAGE_VERSION` 防止 MathJax 的 `eval('require')` 在 Electron 环境中执行
+
+修改 MathJax 相关代码后，需要验证 rollup 构建：
+```bash
+node scripts/build-mathjax-svg.mjs  # 单独构建 mathjax-svg.js
+node -e "const {tex2svg} = require('./mathjax-svg.js'); console.log(tex2svg('x^2').includes('<path>'))"
+```
+
+### Module loading
+
+`mathjax-svg.js` 是独立文件，运行时通过 `require(absolutePath)` 动态加载（不能用相对路径，Electron 的 `__dirname` 指向 Obsidian 安装目录而非插件目录）。
 
 ## Architecture
 
@@ -21,16 +50,15 @@ Obsidian MD (.md)
   ↓ mdUnescape()             — backslash escapes → placeholders
   ↓ LaTeX $...$              — placeholders
   ↓ preprocessCallouts()     — > [!TYPE] → <!--CALLOUT_START:type--> + markdown
-  ↓ markdown-it (+mark)       — MD → HTML (callout body 内的 markdown 被解析)
+  ↓ markdown-it (+mark)       — MD → HTML (callout body parsed)
   ↓ postprocessCallouts()    — <!--CALLOUT_START--> → <table> with lucide SVG icon
   ↓ restoreEscapes()          — placeholders → literal chars
-  ↓ renderLatexSvg()         — LaTeX → SVG (Preview only)
   ↓
-  ├── forCopy=true  → replaceImagesWithPlaceholders + LaTeX placeholder
-  ├── forCopy=false → processImagesToBase64 + renderLatexSvg
+  ├── [Preview] KaTeX HTML (system fonts)
+  └── [Copy]    MathJax SVG (<path> glyphs, no font dependency)
   ↓
-  ├── [Preview] → HTTP server → browser (dark mode @media preserved)
-  └── [Copy]    → strip @media → juice inline → Electron clipboard
+  ├── [Preview] → processImagesToBase64 → HTTP server → browser
+  └── [Copy]    → replaceImagesWithPlaceholders → strip @media → juice inline → Electron clipboard
 ```
 
 ## Callout System
@@ -61,10 +89,12 @@ Obsidian MD (.md)
 ## Key Decisions
 
 - **Copy path uses Electron native `clipboard.write({text, html})`** — Web Clipboard API caused WeChat editor hangs
-- **Images/LaTeX use text placeholders in Copy mode** — `【图片：path】` / `【公式：formula】`
+- **Images use text placeholders in Copy mode** — `【图片：path】`（Base64 导致微信编辑器卡死）
+- **LaTeX uses MathJax SVG in Copy mode** — rollup 打包 mathjax-full，输出 `<path>` 元素的自包含 SVG（微信兼容）
+- **LaTeX uses KaTeX in Preview mode** — 预览版在浏览器内渲染，KaTeX HTML 效果更好
 - **Callouts use `<table>` with inline styles** — WeChat strips `<div>` but preserves `<table>`
 - **lucide icons via `import * as lucideStatic`** — runtime dynamic lookup, no hardcoded SVG map
-- **WeChat CSS override: inline `!important`** — WeChat rich text editor injects `.js_darkmode__2 { background: rgb(...) !important }`; only inline style wins
+- **WeChat CSS override: inline `!important`** — only inline style wins against `.js_darkmode__2`
 
 ## Testing
 
@@ -73,7 +103,7 @@ npx vitest run          # all tests
 npx vitest run tests/   # specific test file
 ```
 
-161 tests covering: callout rendering, callout inline styles (bold/italic/highlight/lists/code), alias resolution, dark mode CSS variables, lucide icon SVG output, CSS debugging, merge logic with real vault JSON.
+162 tests covering: callout rendering, callout inline styles (bold/italic/highlight/lists/code), alias resolution, dark mode CSS variables, lucide icon SVG output, CSS debugging, merge logic with real vault JSON.
 
 ## CSS Debugging Workflow
 
