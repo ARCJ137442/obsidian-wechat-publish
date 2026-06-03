@@ -1,4 +1,4 @@
-import tseslint from 'typescript-eslint';
+import tseslint from "typescript-eslint";
 import obsidianmd from "eslint-plugin-obsidianmd";
 import globals from "globals";
 import { globalIgnores } from "eslint/config";
@@ -11,13 +11,10 @@ export default tseslint.config(
 			},
 			parserOptions: {
 				projectService: {
-					allowDefaultProject: [
-						'eslint.config.js',
-						'manifest.json'
-					]
+					allowDefaultProject: ["eslint.config.js", "manifest.json"],
 				},
 				tsconfigRootDir: import.meta.dirname,
-				extraFileExtensions: ['.json']
+				extraFileExtensions: [".json"],
 			},
 		},
 	},
@@ -25,7 +22,10 @@ export default tseslint.config(
 	{
 		rules: {
 			// Obsidian plugins run in Electron; console.log is useful for DevTools debugging
-			"no-console": ["warn", { allow: ["log", "warn", "error", "debug"] }],
+			"no-console": [
+				"warn",
+				{ allow: ["log", "warn", "error", "debug"] },
+			],
 		},
 	},
 	{
@@ -41,6 +41,8 @@ export default tseslint.config(
 			"import/no-nodejs-modules": "off",
 			"@typescript-eslint/no-require-imports": "off",
 			"no-undef": "off",
+			// JSON.parse returns any; Obsidian CachedMetadata.frontmatter is Record<string, any>
+			"@typescript-eslint/no-unsafe-assignment": "off",
 		},
 	},
 	globalIgnores([

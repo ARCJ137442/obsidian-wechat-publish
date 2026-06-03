@@ -1,25 +1,25 @@
 /* eslint-disable obsidianmd/ui/sentence-case */
 import {
-    App,
-    Editor,
-    MarkdownView,
-    Notice,
-    Plugin,
-    PluginSettingTab,
-    Setting,
-    TFile,
-    requestUrl,
+	App,
+	Editor,
+	MarkdownView,
+	Notice,
+	Plugin,
+	PluginSettingTab,
+	Setting,
+	TFile,
+	requestUrl,
 } from "obsidian";
 import MarkdownIt, { type PluginSimple } from "markdown-it";
 // @ts-ignore - no types available
 import markdownItMark from "markdown-it-mark";
 import juice from "juice";
 import preprocessCallouts, {
-    postprocessCallouts,
-    buildMergedCalloutData,
-    setupCalloutData,
-    getActiveThemes,
-    CalloutManagerJson,
+	postprocessCallouts,
+	buildMergedCalloutData,
+	setupCalloutData,
+	getActiveThemes,
+	CalloutManagerJson,
 } from "./callout-plugin";
 import { handleTemplateRename, renameFileSafely } from "./template-rename";
 
@@ -357,373 +357,411 @@ const CALLOUT_FALLBACK_CSS = `
 
 /** Convert Markdown backslash escapes to placeholder tokens. */
 function mdUnescape(text: string): string {
-    const escapes: [string, string][] = [
-        ["\\\\", "\\"],
-        ["\\_", "_"],
-        ["\\*", "*"],
-        ["\\`", "`"],
-        ["\\#", "#"],
-        ["\\+", "+"],
-        ["\\-", "-"],
-        ["\\.", "."],
-        ["\\!", "!"],
-        ["\\(", "("],
-        ["\\)", ")"],
-        ["\\[", "["],
-        ["\\]", "]"],
-        ["\\{", "{"],
-        ["\\}", "}"],
-        ["\\~", "~"],
-    ];
-    let result = text;
-    for (let i = 0; i < escapes.length; i++) {
-        const ph = `\uE000MDESC${i}\uE000`;
-        result = result.split(escapes[i]![0]).join(ph);
-        escapePlaceholders.set(ph, escapes[i]![1]);
-    }
-    return result;
+	const escapes: [string, string][] = [
+		["\\\\", "\\"],
+		["\\_", "_"],
+		["\\*", "*"],
+		["\\`", "`"],
+		["\\#", "#"],
+		["\\+", "+"],
+		["\\-", "-"],
+		["\\.", "."],
+		["\\!", "!"],
+		["\\(", "("],
+		["\\)", ")"],
+		["\\[", "["],
+		["\\]", "]"],
+		["\\{", "{"],
+		["\\}", "}"],
+		["\\~", "~"],
+	];
+	let result = text;
+	for (let i = 0; i < escapes.length; i++) {
+		const ph = `\uE000MDESC${i}\uE000`;
+		result = result.split(escapes[i]![0]).join(ph);
+		escapePlaceholders.set(ph, escapes[i]![1]);
+	}
+	return result;
 }
 const escapePlaceholders = new Map<string, string>();
 
 function restoreEscapes(text: string): string {
-    let result = text;
-    for (const [ph, ch] of escapePlaceholders) {
-        result = result.split(ph).join(ch);
-    }
-    return result;
+	let result = text;
+	for (const [ph, ch] of escapePlaceholders) {
+		result = result.split(ph).join(ch);
+	}
+	return result;
 }
 
 /** Clean SVG for WeChat: strip xlink, use currentColor, pt units. */
 function cleanWechatSvg(svg: string): string {
-    svg = svg.replace(/<\?xml[^?]*\?>\s*/g, "");
-    svg = svg.replace(/<!--[^>]*-->\s*/g, "");
-    svg = svg.replace(/\s*xmlns:xlink=['"][^"']*['"]/g, "");
-    svg = svg.replace(/\s*version=['"][\d.]+['"]/g, "");
-    svg = svg.replace(/xlink:href/g, "href");
-    const wMatch = svg.match(/width='([\d.]+)pt'/);
-    const wPt = wMatch ? wMatch[1] : null;
-    svg = svg.replace(/\s*width='[\d.]+pt'/g, "");
-    svg = svg.replace(/\s*height='[\d.]+pt'/g, "");
-    // Pad viewBox to prevent tall glyphs (e.g. superscripts) from clipping
-    svg = svg.replace(/viewBox='([\d.\-\s]+)'/, (_m: string, vb: string) => {
-        const parts = vb.split(/\s+/).map(Number);
-        if (parts.length === 4) {
-            parts[1]! -= 6; // y - padding
-            parts[3]! += 12; // height + padding
-        }
-        return `viewBox='${parts.join(" ")}'`;
-    });
-    let attrs = 'style="vertical-align:middle;"';
-    if (wPt) attrs += ` width="${wPt}pt"`;
-    svg = svg.replace("<svg ", `<svg ${attrs} `);
-    svg = svg.replace(/<g /g, '<g fill="currentColor" ');
-    svg = svg.replace(/<use /g, '<use fill="currentColor" ');
-    return svg.trim();
+	svg = svg.replace(/<\?xml[^?]*\?>\s*/g, "");
+	svg = svg.replace(/<!--[^>]*-->\s*/g, "");
+	svg = svg.replace(/\s*xmlns:xlink=['"][^"']*['"]/g, "");
+	svg = svg.replace(/\s*version=['"][\d.]+['"]/g, "");
+	svg = svg.replace(/xlink:href/g, "href");
+	const wMatch = svg.match(/width='([\d.]+)pt'/);
+	const wPt = wMatch ? wMatch[1] : null;
+	svg = svg.replace(/\s*width='[\d.]+pt'/g, "");
+	svg = svg.replace(/\s*height='[\d.]+pt'/g, "");
+	// Pad viewBox to prevent tall glyphs (e.g. superscripts) from clipping
+	svg = svg.replace(/viewBox='([\d.\-\s]+)'/, (_m: string, vb: string) => {
+		const parts = vb.split(/\s+/).map(Number);
+		if (parts.length === 4) {
+			parts[1]! -= 6; // y - padding
+			parts[3]! += 12; // height + padding
+		}
+		return `viewBox='${parts.join(" ")}'`;
+	});
+	let attrs = 'style="vertical-align:middle;"';
+	if (wPt) attrs += ` width="${wPt}pt"`;
+	svg = svg.replace("<svg ", `<svg ${attrs} `);
+	svg = svg.replace(/<g /g, '<g fill="currentColor" ');
+	svg = svg.replace(/<use /g, '<use fill="currentColor" ');
+	return svg.trim();
 }
 
 /** Render LaTeX for Preview (SVG via codecogs) or Copy (text placeholder). */
 async function renderLatexSvg(
-    formula: string,
-    forCopy = false,
+	formula: string,
+	forCopy = false,
 ): Promise<string> {
-    if (forCopy) return `【公式：${escapeHtml(formula)}】`;
-    try {
-        const encoded = encodeURIComponent(formula);
-        const url = `https://latex.codecogs.com/svg.latex?\\color{black}%20${encoded}`;
-        const resp = await requestUrl({
-            url,
-            headers: { "User-Agent": "Mozilla/5.0" },
-        });
-        return cleanWechatSvg(resp.text);
-    } catch {
-        return `<code>${escapeHtml(formula)}</code>`;
-    }
+	if (forCopy) return `【公式：${escapeHtml(formula)}】`;
+	try {
+		const encoded = encodeURIComponent(formula);
+		const url = `https://latex.codecogs.com/svg.latex?\\color{black}%20${encoded}`;
+		const resp = await requestUrl({
+			url,
+			headers: { "User-Agent": "Mozilla/5.0" },
+		});
+		return cleanWechatSvg(resp.text);
+	} catch {
+		return `<code>${escapeHtml(formula)}</code>`;
+	}
 }
 
 function escapeHtml(text: string): string {
-    return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
 }
 
 /** 从 hsl(...) 或 hsla(...) 字符串中提取 H, S, L 数值 */
 function parseHsl(hslStr: string): { h: number; s: number; l: number } | null {
-    const match = hslStr.match(/hsla?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%/);
-    if (!match || !match[1] || !match[2] || !match[3]) return null;
-    return { h: parseInt(match[1]), s: parseInt(match[2]), l: parseInt(match[3]) };
+	const match = hslStr.match(/hsla?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%/);
+	if (!match || !match[1] || !match[2] || !match[3]) return null;
+	return {
+		h: parseInt(match[1]),
+		s: parseInt(match[2]),
+		l: parseInt(match[3]),
+	};
 }
 
 /** 生成深色模式下所有自定义 callout 类型的 CSS 覆盖规则（CSS 自定义属性） */
 function generateDarkModeCustomCalloutCSS(): string {
-    const BUILTIN_TYPES = new Set(["note", "info", "tip", "question", "warning", "danger", "example", "quote"]);
-    const themes = getActiveThemes();
-    const lines: string[] = [];
+	const BUILTIN_TYPES = new Set([
+		"note",
+		"info",
+		"tip",
+		"question",
+		"warning",
+		"danger",
+		"example",
+		"quote",
+	]);
+	const themes = getActiveThemes();
+	const lines: string[] = [];
 
-    for (const [type, theme] of Object.entries(themes)) {
-        if (BUILTIN_TYPES.has(type)) continue;
-        const parsed = parseHsl(theme.border);
-        if (!parsed) continue;
-        const { h, s } = parsed;
-        // 边框明度降 35（最低 15）
-        const borderL = Math.max(parsed.l - 35, 15);
-        // 标题文字明度：light ≤ 50 则提高，否则降低
-        const titleL = parsed.l <= 50
-            ? Math.min(parsed.l + 45, 85)
-            : Math.max(parsed.l - 40, 45);
+	for (const [type, theme] of Object.entries(themes)) {
+		if (BUILTIN_TYPES.has(type)) continue;
+		const parsed = parseHsl(theme.border);
+		if (!parsed) continue;
+		const { h, s } = parsed;
+		// 边框明度降 35（最低 15）
+		const borderL = Math.max(parsed.l - 35, 15);
+		// 标题文字明度：light ≤ 50 则提高，否则降低
+		const titleL =
+			parsed.l <= 50
+				? Math.min(parsed.l + 45, 85)
+				: Math.max(parsed.l - 40, 45);
 
-        lines.push(
-            `html.dark  .wechat-callout-${type} { --callout-border: hsl(${h},${s}%,${borderL}%) !important; --callout-title-color: hsl(${h},${s}%,${titleL}%) !important; --callout-bg: hsla(${h},${s}%,${borderL}%,0.12) !important; }`,
-            `html.dark  .wechat-callout-${type} .wechat-callout-title { background: transparent !important; padding: 0 !important; }`,
-            `html:not(.light) .wechat-callout-${type} { --callout-border: hsl(${h},${s}%,${borderL}%) !important; --callout-title-color: hsl(${h},${s}%,${titleL}%) !important; --callout-bg: hsla(${h},${s}%,${borderL}%,0.12) !important; }`,
-            `html:not(.light) .wechat-callout-${type} .wechat-callout-title { background: transparent !important; padding: 0 !important; }`,
-        );
-    }
+		lines.push(
+			`html.dark  .wechat-callout-${type} { --callout-border: hsl(${h},${s}%,${borderL}%) !important; --callout-title-color: hsl(${h},${s}%,${titleL}%) !important; --callout-bg: hsla(${h},${s}%,${borderL}%,0.12) !important; }`,
+			`html.dark  .wechat-callout-${type} .wechat-callout-title { background: transparent !important; padding: 0 !important; }`,
+			`html:not(.light) .wechat-callout-${type} { --callout-border: hsl(${h},${s}%,${borderL}%) !important; --callout-title-color: hsl(${h},${s}%,${titleL}%) !important; --callout-bg: hsla(${h},${s}%,${borderL}%,0.12) !important; }`,
+			`html:not(.light) .wechat-callout-${type} .wechat-callout-title { background: transparent !important; padding: 0 !important; }`,
+		);
+	}
 
-    return lines.join("\n");
+	return lines.join("\n");
 }
 
 // ──────── Plugin ────────
 
 interface WechatPluginSettings {
-    customCSS: string;
-    enableTemplateRename: boolean;
+	customCSS: string;
+	enableTemplateRename: boolean;
 }
 
 const DEFAULT_SETTINGS: WechatPluginSettings = {
-    customCSS: DEFAULT_CSS,
-    enableTemplateRename: false,
+	customCSS: DEFAULT_CSS,
+	enableTemplateRename: false,
 };
 
 export default class WechatCopyPlugin extends Plugin {
-    settings: WechatPluginSettings;
+	settings: WechatPluginSettings;
 
-    async onload() {
-        await this.loadSettings();
-        await this.loadCalloutManagerThemes();
+	async onload() {
+		await this.loadSettings();
+		await this.loadCalloutManagerThemes();
 
-        // Command 1: Preview in Browser
-        this.addCommand({
-            id: "preview-in-browser",
-            name: "Preview in Browser",
-            editorCallback: async (editor: Editor, view: MarkdownView) => {
-                const markdown = editor.getValue();
-                const currentPath = view.file ? view.file.path : "";
-                await this.processAndPreview(markdown, currentPath);
-            },
-        });
+		// Command 1: Preview in Browser
+		this.addCommand({
+			id: "preview-in-browser",
+			name: "Preview in Browser",
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				const markdown = editor.getValue();
+				const currentPath = view.file ? view.file.path : "";
+				await this.processAndPreview(markdown, currentPath);
+			},
+		});
 
-        // Command 2: Copy to WeChat
-        this.addCommand({
-            id: "copy-to-wechat",
-            name: "Copy to WeChat",
-            editorCallback: async (editor: Editor, view: MarkdownView) => {
-                const markdown = editor.getValue();
-                const currentPath = view.file ? view.file.path : "";
-                await this.processAndCopy(markdown, currentPath);
-            },
-        });
+		// Command 2: Copy to WeChat
+		this.addCommand({
+			id: "copy-to-wechat",
+			name: "Copy to WeChat",
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				const markdown = editor.getValue();
+				const currentPath = view.file ? view.file.path : "";
+				await this.processAndCopy(markdown, currentPath);
+			},
+		});
 
-        // Command 3: Quick Template Rename
-        this.addCommand({
-            id: "rename-by-template",
-            name: "Quick Template Rename",
-            editorCallback: async (_editor: Editor, view: MarkdownView) => {
-                if (!this.settings.enableTemplateRename) {
-                    new Notice("⚠️ 模板重命名功能未启用，请在设置中开启");
-                    return;
-                }
-                await handleTemplateRename(
+		// Command 3: Quick Template Rename
+		this.addCommand({
+			id: "rename-by-template",
+			name: "Quick Template Rename",
+			editorCallback: async (_editor: Editor, view: MarkdownView) => {
+				if (!this.settings.enableTemplateRename) {
+					new Notice("⚠️ 模板重命名功能未启用，请在设置中开启");
+					return;
+				}
+				await handleTemplateRename(
 					view.file ?? this.app.workspace.getActiveFile(),
 					this.parseFrontmatter.bind(this),
 					(file) => this.app.vault.read(file),
 					(file, newPath) =>
 						renameFileSafely(this.app, file, newPath),
 				);
-            },
-        });
+			},
+		});
 
-        this.addSettingTab(new WechatSettingTab(this.app, this));
-    }
+		this.addSettingTab(new WechatSettingTab(this.app, this));
+	}
 
-    onunload() {
-        if (this._previewServer) {
-            clearTimeout(this._previewServerTimeout);
-            this._previewServer.close();
-            this._previewServer = null;
-        }
-    }
+	onunload() {
+		if (this._previewServer) {
+			clearTimeout(this._previewServerTimeout!);
+			this._previewServer.close();
+			this._previewServer = null;
+		}
+	}
 
-    /** 读取 callout-manager 配置并合并到渲染管道（联动 callout-manager） */
-    async loadCalloutManagerThemes(): Promise<void> {
-        console.log("[wechat-publish] loadCalloutManagerThemes: 开始执行");
-        try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const vaultBase = (this.app.vault.adapter as any).getBasePath?.() as string | undefined ?? this.app.vault.adapter.getResourcePath("/");
-            const cmPath = `${vaultBase}/.obsidian/plugins/callout-manager/data.json`;
-            console.log("[wechat-publish] loadCalloutManagerThemes: vault 根目录:", vaultBase);
-            console.log("[wechat-publish] loadCalloutManagerThemes: 拼接后路径:", cmPath);
+	/** 读取 callout-manager 配置并合并到渲染管道（联动 callout-manager） */
+	async loadCalloutManagerThemes(): Promise<void> {
+		console.log("[wechat-publish] loadCalloutManagerThemes: 开始执行");
+		try {
+			const vaultBase =
+				((this.app.vault.adapter as any).getBasePath?.() as // eslint-disable-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+					| string
+					| undefined) ?? this.app.vault.adapter.getResourcePath("/");
+			const cmPath = `${vaultBase}/.obsidian/plugins/callout-manager/data.json`;
+			console.log(
+				"[wechat-publish] loadCalloutManagerThemes: vault 根目录:",
+				vaultBase,
+			);
+			console.log(
+				"[wechat-publish] loadCalloutManagerThemes: 拼接后路径:",
+				cmPath,
+			);
 
-            // 使用 Node.js fs 读取（Obsidian 插件上下文可用 require('fs')）
-            const fs = require("fs") as typeof import("fs");
-            if (!fs.existsSync(cmPath)) {
-                console.log("[wechat-publish] loadCalloutManagerThemes: 文件不存在，跳过（这是正常的如果未安装 callout-manager）");
-                return;
-            }
+			// 使用 Node.js fs 读取（Obsidian 插件上下文可用 require('fs')）
+			const fs = require("fs") as typeof import("fs");
+			if (!fs.existsSync(cmPath)) {
+				console.log(
+					"[wechat-publish] loadCalloutManagerThemes: 文件不存在，跳过（这是正常的如果未安装 callout-manager）",
+				);
+				return;
+			}
 
-            const content = fs.readFileSync(cmPath, "utf-8");
-            console.log("[wechat-publish] loadCalloutManagerThemes: 文件读取成功，长度:", content.length);
-            const json: CalloutManagerJson = JSON.parse(content);
-            console.log("[wechat-publish] loadCalloutManagerThemes: JSON 解析成功, custom:", json.callouts?.custom);
+			const content = fs.readFileSync(cmPath, "utf-8");
+			console.log(
+				"[wechat-publish] loadCalloutManagerThemes: 文件读取成功，长度:",
+				content.length,
+			);
+			const json: CalloutManagerJson = JSON.parse(content);
+			console.log(
+				"[wechat-publish] loadCalloutManagerThemes: JSON 解析成功, custom:",
+				json.callouts?.custom,
+			);
 
-            const { themes, aliases } = buildMergedCalloutData(json);
-            setupCalloutData(themes, aliases);
-            console.log("[wechat-publish] loadCalloutManagerThemes: 合并完成，已注入 themes 和 aliases");
+			const { themes, aliases } = buildMergedCalloutData(json);
+			setupCalloutData(themes, aliases);
+			console.log(
+				"[wechat-publish] loadCalloutManagerThemes: 合并完成，已注入 themes 和 aliases",
+			);
 
-            // 统计信息
-            const settings = json.callouts?.settings ?? {};
-            const customList = json.callouts?.custom ?? [];
-            const overridden = Object.keys(settings).filter((k) => k in themes);
-            const totalColors = Object.values(themes).filter((t) => t.border.startsWith("hsl")).length;
+			// 统计信息
+			const settings = json.callouts?.settings ?? {};
+			const customList = json.callouts?.custom ?? [];
+			const overridden = Object.keys(settings).filter((k) => k in themes);
+			const totalColors = Object.values(themes).filter((t) =>
+				t.border.startsWith("hsl"),
+			).length;
 
-            console.log(
-                `[wechat-publish] loadCalloutManagerThemes: 自定义类型=${customList.length}（${customList.join(", ") || "无"}）` +
-                `, 主题总数=${totalColors}, 被覆盖内置类型=${overridden.length}（${overridden.join(", ") || "无"}）`
-            );
+			console.log(
+				`[wechat-publish] loadCalloutManagerThemes: 自定义类型=${customList.length}（${customList.join(", ") || "无"}）` +
+					`, 主题总数=${totalColors}, 被覆盖内置类型=${overridden.length}（${overridden.join(", ") || "无"}）`,
+			);
 
-            new Notice(
-                `✅ Callout 主题已加载\n` +
-                `• 自定义类型：${customList.length} 种（${customList.join(", ") || "无"}）\n` +
-                `• 当前主题总数：${totalColors} 种\n` +
-                `• 被覆盖的内置类型：${overridden.length} 种（${overridden.join(", ") || "无"}）`,
-            );
-        } catch (e: unknown) {
-            console.error("[wechat-publish] loadCalloutManagerThemes: 错误:", e instanceof Error ? e.message : String(e));
-            new Notice(`❌ Callout 主题加载失败: ${e instanceof Error ? e.message : String(e)}`);
-        }
-    }
+			new Notice(
+				`✅ Callout 主题已加载\n` +
+					`• 自定义类型：${customList.length} 种（${customList.join(", ") || "无"}）\n` +
+					`• 当前主题总数：${totalColors} 种\n` +
+					`• 被覆盖的内置类型：${overridden.length} 种（${overridden.join(", ") || "无"}）`,
+			);
+		} catch (e: unknown) {
+			console.error(
+				"[wechat-publish] loadCalloutManagerThemes: 错误:",
+				e instanceof Error ? e.message : String(e),
+			);
+			new Notice(
+				`❌ Callout 主题加载失败: ${e instanceof Error ? e.message : String(e)}`,
+			);
+		}
+	}
 
-    // ── Helpers ──
+	// ── Helpers ──
 
-    parseFrontmatter(text: string): {
-        meta: Record<string, string>;
-        body: string;
-    } {
-        const meta: Record<string, string> = {};
-        let body = text;
-        if (text.startsWith("---")) {
-            const end = text.indexOf("---", 3);
-            if (end !== -1) {
-                const fm = text.slice(3, end).trim();
-                body = text.slice(end + 3).trim();
-                for (const line of fm.split("\n")) {
-                    const colonIdx = line.indexOf(":");
-                    if (colonIdx > 0) {
-                        const key = line.slice(0, colonIdx).trim();
-                        let val = line.slice(colonIdx + 1).trim();
-                        val = val.replace(/^["']|["']$/g, "");
-                        meta[key] = val;
-                    }
-                }
-            }
-        }
-        return { meta, body };
-    }
+	parseFrontmatter(text: string): {
+		meta: Record<string, string>;
+		body: string;
+	} {
+		const meta: Record<string, string> = {};
+		let body = text;
+		if (text.startsWith("---")) {
+			const end = text.indexOf("---", 3);
+			if (end !== -1) {
+				const fm = text.slice(3, end).trim();
+				body = text.slice(end + 3).trim();
+				for (const line of fm.split("\n")) {
+					const colonIdx = line.indexOf(":");
+					if (colonIdx > 0) {
+						const key = line.slice(0, colonIdx).trim();
+						let val = line.slice(colonIdx + 1).trim();
+						val = val.replace(/^["']|["']$/g, "");
+						meta[key] = val;
+					}
+				}
+			}
+		}
+		return { meta, body };
+	}
 
-    escapeHtml(text: string): string {
-        return text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;");
-    }
+	escapeHtml(text: string): string {
+		return text
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;")
+			.replace(/"/g, "&quot;");
+	}
 
-    // ── Shared: Enhanced MD → HTML ──
-    async processMarkdown(
-        markdown: string,
-        currentPath: string,
-        forCopy = false,
-    ): Promise<string> {
-        // 1. WikiLink normalization
-        const normalized = this.convertWikiLinks(markdown, currentPath);
+	// ── Shared: Enhanced MD → HTML ──
+	async processMarkdown(
+		markdown: string,
+		currentPath: string,
+		forCopy = false,
+	): Promise<string> {
+		// 1. WikiLink normalization
+		const normalized = this.convertWikiLinks(markdown, currentPath);
 
-        // 2. Backslash unescape → placeholders (before any parsing)
-        const unescaped = mdUnescape(normalized);
+		// 2. Backslash unescape → placeholders (before any parsing)
+		const unescaped = mdUnescape(normalized);
 
-        // 3. LaTeX $...$ → placeholder tokens (preserve raw formula for API)
-        const latexMap = new Map<string, string>();
-        let latexIdx = 0;
-        const withLatexPH = unescaped
-            .replace(/\$\$([\s\S]+?)\$\$/g, (_m, f: string) => {
-                const ph = `\uE000LATEX${latexIdx}\uE000`;
-                latexMap.set(ph, f.trim());
-                latexIdx++;
-                return ph;
-            })
-            .replace(/\$(.+?)\$/g, (_m, f: string) => {
-                const ph = `\uE000LATEX${latexIdx}\uE000`;
-                latexMap.set(ph, f.trim());
-                latexIdx++;
-                return ph;
-            });
+		// 3. LaTeX $...$ → placeholder tokens (preserve raw formula for API)
+		const latexMap = new Map<string, string>();
+		let latexIdx = 0;
+		const withLatexPH = unescaped
+			.replace(/\$\$([\s\S]+?)\$\$/g, (_m, f: string) => {
+				const ph = `\uE000LATEX${latexIdx}\uE000`;
+				latexMap.set(ph, f.trim());
+				latexIdx++;
+				return ph;
+			})
+			.replace(/\$(.+?)\$/g, (_m, f: string) => {
+				const ph = `\uE000LATEX${latexIdx}\uE000`;
+				latexMap.set(ph, f.trim());
+				latexIdx++;
+				return ph;
+			});
 
-        // 4. markdown-it with plugins
-        const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
-        md.use(markdownItMark as PluginSimple); // ==highlight== → <mark>
-        const preprocessed = preprocessCallouts(withLatexPH);
-        let html = md.render(preprocessed);
-        html = postprocessCallouts(html); // ← 恢复 callout 结构
+		// 4. markdown-it with plugins
+		const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
+		md.use(markdownItMark as PluginSimple); // ==highlight== → <mark>
+		const preprocessed = preprocessCallouts(withLatexPH);
+		let html = md.render(preprocessed);
+		html = postprocessCallouts(html); // ← 恢复 callout 结构
 
-        // 5. Restore backslash escapes
-        html = restoreEscapes(html);
+		// 5. Restore backslash escapes
+		html = restoreEscapes(html);
 
-        // 6. Fix bold-colon break
-        html = this.preventBreakAfterStrong(html);
+		// 6. Fix bold-colon break
+		html = this.preventBreakAfterStrong(html);
 
-        // 7. Resolve LaTeX placeholders → SVG (async)
-        for (const [ph, formula] of latexMap) {
-            const svg = await renderLatexSvg(formula, forCopy);
-            html = html.split(ph).join(svg);
-        }
+		// 7. Resolve LaTeX placeholders → SVG (async)
+		for (const [ph, formula] of latexMap) {
+			const svg = await renderLatexSvg(formula, forCopy);
+			html = html.split(ph).join(svg);
+		}
 
-        // 8. Image → Base64
-        html = forCopy
-            ? this.replaceImagesWithPlaceholders(html)
-            : await this.processImagesToBase64(html, currentPath);
+		// 8. Image → Base64
+		html = forCopy
+			? this.replaceImagesWithPlaceholders(html)
+			: await this.processImagesToBase64(html, currentPath);
 
-        return html;
-    }
+		return html;
+	}
 
-    // ── Command: Preview in Browser ──
-    // Track active preview server to close on next invocation
-    private _previewServer: import("http").Server | null = null;
-    private _previewServerTimeout: ReturnType<typeof setTimeout> | null = null;
+	// ── Command: Preview in Browser ──
+	// Track active preview server to close on next invocation
+	private _previewServer: import("http").Server | null = null;
+	private _previewServerTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    async processAndPreview(markdown: string, currentPath: string) {
-        new Notice("正在生成预览...");
-        try {
-            // Close previous preview server if still running
-            if (this._previewServer) {
-                clearTimeout(this._previewServerTimeout);
-                this._previewServer.close();
-                this._previewServer = null;
-            }
+	async processAndPreview(markdown: string, currentPath: string) {
+		new Notice("正在生成预览...");
+		try {
+			// Close previous preview server if still running
+			if (this._previewServer) {
+				clearTimeout(this._previewServerTimeout!);
+				this._previewServer.close();
+				this._previewServer = null;
+			}
 
-            // Extract metadata from frontmatter and filename
-            const { meta, body: mdBody } = this.parseFrontmatter(markdown);
-            const fname =
-                currentPath.split("/").pop()?.replace(/\.md$/, "") || "";
-            const title = meta["title"] || fname;
-            const date = meta["date"] || "";
-            const author = meta["author"] || "公众号作者";
-            const titleShort = fname; // placeholder — update later
+			// Extract metadata from frontmatter and filename
+			const { meta, body: mdBody } = this.parseFrontmatter(markdown);
+			const fname =
+				currentPath.split("/").pop()?.replace(/\.md$/, "") || "";
+			const title = meta["title"] || fname;
+			const date = meta["date"] || "";
+			const author = meta["author"] || "公众号作者";
+			const titleShort = fname; // placeholder — update later
 
-            const bodyHtml = await this.processMarkdown(mdBody, currentPath);
+			const bodyHtml = await this.processMarkdown(mdBody, currentPath);
 
-
-            const renderCSS = this.getRenderCSS();
-            const fullHtml = `<!DOCTYPE html>
+			const renderCSS = this.getRenderCSS();
+			const fullHtml = `<!DOCTYPE html>
 <html lang="zh-CN" class="light">
 <head>
 <meta charset="UTF-8">
@@ -856,414 +894,425 @@ function setTheme(m){let h=document.documentElement,lb=document.getElementById("
 if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 </script>
 </body></html>`;
-            // Serve via local HTTP to avoid file:// CORS issues with inline SVG
-            const http = require("http") as typeof import("http");
-            const server = http.createServer((_req: import("http").IncomingMessage, res: import("http").ServerResponse) => {
-                res.writeHead(200, {
-                    "Content-Type": "text/html; charset=utf-8",
-                });
-                res.end(fullHtml);
-            });
-            await new Promise<void>((resolve) =>
-                server.listen(0, "127.0.0.1", resolve),
-            );
-            const addr = server.address() as { port: number };
-            const url = `http://127.0.0.1:${addr.port}`;
+			// Serve via local HTTP to avoid file:// CORS issues with inline SVG
+			const http = require("http") as typeof import("http");
+			const server = http.createServer(
+				(
+					_req: import("http").IncomingMessage,
+					res: import("http").ServerResponse,
+				) => {
+					res.writeHead(200, {
+						"Content-Type": "text/html; charset=utf-8",
+					});
+					res.end(fullHtml);
+				},
+			);
+			await new Promise<void>((resolve) =>
+				server.listen(0, "127.0.0.1", resolve),
+			);
+			const addr = server.address() as { port: number };
+			const url = `http://127.0.0.1:${addr.port}`;
 
-            const { shell } = require("electron") as { shell: { openExternal: (url: string) => Promise<void> } };
-            await shell.openExternal(url);
+			const { shell } = require("electron") as {
+				shell: { openExternal: (url: string) => Promise<void> };
+			};
+			await shell.openExternal(url);
 
-            // Track & auto-close: keep alive 30s for refreshes, close on next preview
-            this._previewServer = server;
-            this._previewServerTimeout = setTimeout(() => {
-                server.close();
-                if (this._previewServer === server) this._previewServer = null;
-            }, 30000);
-            new Notice("✅ 预览已在浏览器中打开");
-        } catch (error) {
-            console.error(error);
-            const msg = error instanceof Error ? error.message : String(error);
-            new Notice("❌ 预览失败：" + msg);
-        }
-    }
+			// Track & auto-close: keep alive 30s for refreshes, close on next preview
+			this._previewServer = server;
+			this._previewServerTimeout = setTimeout(() => {
+				server.close();
+				if (this._previewServer === server) this._previewServer = null;
+			}, 30000);
+			new Notice("✅ 预览已在浏览器中打开");
+		} catch (error) {
+			console.error(error);
+			const msg = error instanceof Error ? error.message : String(error);
+			new Notice("❌ 预览失败：" + msg);
+		}
+	}
 
-    // ── Command: Copy to WeChat ──
-    async processAndCopy(markdown: string, currentPath: string) {
-        new Notice("正在渲染排版并处理图片...");
-        try {
-            const { body: mdBody } = this.parseFrontmatter(markdown);
-            const bodyHtml = await this.processMarkdown(
-                mdBody,
-                currentPath,
-                true,
-            );
-            // Strip @media blocks (WeChat handles dark mode on its own; they can't be juice-inlined)
-            const renderCSS = this.getCopyCSS();
-            const fullHtml = `<div class="wechat-content"><style>${renderCSS}</style>${bodyHtml}</div>`;
-            const inlinedHtml = juice(fullHtml);
-            // Use stripped rendered text as plain-text fallback, not raw markdown
-            const plainText = bodyHtml
-                .replace(/<[^>]+>/g, "")
-                .replace(/\s+/g, " ")
-                .trim();
-            await this.copyToClipboard(inlinedHtml, plainText);
-        } catch (error) {
-            console.error(error);
-            const msg = error instanceof Error ? error.message : String(error);
-            new Notice("❌ 复制失败：" + msg);
-        }
-    }
+	// ── Command: Copy to WeChat ──
+	async processAndCopy(markdown: string, currentPath: string) {
+		new Notice("正在渲染排版并处理图片...");
+		try {
+			const { body: mdBody } = this.parseFrontmatter(markdown);
+			const bodyHtml = await this.processMarkdown(
+				mdBody,
+				currentPath,
+				true,
+			);
+			// Strip @media blocks (WeChat handles dark mode on its own; they can't be juice-inlined)
+			const renderCSS = this.getCopyCSS();
+			const fullHtml = `<div class="wechat-content"><style>${renderCSS}</style>${bodyHtml}</div>`;
+			const inlinedHtml = juice(fullHtml);
+			// Use stripped rendered text as plain-text fallback, not raw markdown
+			const plainText = bodyHtml
+				.replace(/<[^>]+>/g, "")
+				.replace(/\s+/g, " ")
+				.trim();
+			await this.copyToClipboard(inlinedHtml, plainText);
+		} catch (error) {
+			console.error(error);
+			const msg = error instanceof Error ? error.message : String(error);
+			new Notice("❌ 复制失败：" + msg);
+		}
+	}
 
-    // 将 ![[image.png]] 转换为 ![](image.png)
-    // ── CSS helper ──
+	// 将 ![[image.png]] 转换为 ![](image.png)
+	// ── CSS helper ──
 
-    getCopyCSS(): string {
-        const css = this.getRenderCSS();
-        const mediaIdx = css.indexOf("@media");
-        let copy = mediaIdx >= 0 ? css.substring(0, mediaIdx) : css;
-        // Strip color props ONLY at start of declaration (prevent matching *-color: etc.)
-        copy = copy.replace(/^\s*color:\s*[^;]+;\s*$/gm, "");
-        copy = copy.replace(/^\s*color:\s*rgba?\([^)]+\)\s*!?\s*;?\s*$/gm, "");
-        copy = copy.replace(/^\s*color:\s*#[0-9a-fA-F]+\s*!?\s*;?\s*$/gm, "");
-	        // Replace mark gradient with solid bg — WeChat converts rgba(0,0,0,*) ↔ rgba(255,255,255,*)
-	        copy = copy.replace(
-	            /background:\s*linear-gradient\([^)]+rgba\(0,\s*0,\s*0[^)]+\)[^)]*\)/g,
-	            "background-color: rgba(0,0,0,0.15)",
-	        );
-        // Keep blockquote as fixed gray
-        copy +=
-            "\nblockquote, blockquote p { color: rgba(0,0,0,0.5) !important; }";
-        return copy;
-    }
+	getCopyCSS(): string {
+		const css = this.getRenderCSS();
+		const mediaIdx = css.indexOf("@media");
+		let copy = mediaIdx >= 0 ? css.substring(0, mediaIdx) : css;
+		// Strip color props ONLY at start of declaration (prevent matching *-color: etc.)
+		copy = copy.replace(/^\s*color:\s*[^;]+;\s*$/gm, "");
+		copy = copy.replace(/^\s*color:\s*rgba?\([^)]+\)\s*!?\s*;?\s*$/gm, "");
+		copy = copy.replace(/^\s*color:\s*#[0-9a-fA-F]+\s*!?\s*;?\s*$/gm, "");
+		// Replace mark gradient with solid bg — WeChat converts rgba(0,0,0,*) ↔ rgba(255,255,255,*)
+		copy = copy.replace(
+			/background:\s*linear-gradient\([^)]+rgba\(0,\s*0,\s*0[^)]+\)[^)]*\)/g,
+			"background-color: rgba(0,0,0,0.15)",
+		);
+		// Keep blockquote as fixed gray
+		copy +=
+			"\nblockquote, blockquote p { color: rgba(0,0,0,0.5) !important; }";
+		return copy;
+	}
 
-    getRenderCSS(): string {
-        const customCSS = this.settings.customCSS ?? "";
-        if (customCSS.includes(".wechat-callout")) return customCSS;
-        return `${customCSS}
+	getRenderCSS(): string {
+		const customCSS = this.settings.customCSS ?? "";
+		if (customCSS.includes(".wechat-callout")) return customCSS;
+		return `${customCSS}
 ${CALLOUT_FALLBACK_CSS}`;
-    }
+	}
 
-    /**
-     * 解析笔记链接：查找目标笔记的 link-wechat-mp frontmatter
-     * @param linkpath 笔记路径或名称（从 wikilink 提取）
-     * @param sourcePath 当前笔记路径（用于相对路径解析）
-     * @returns 微信文章链接或 null
-     */
-    resolveNoteLink(linkpath: string, sourcePath: string): string | null {
-        try {
-            const file = this.app.metadataCache.getFirstLinkpathDest(
-                linkpath,
-                sourcePath,
-            );
-            if (!file) return null;
+	/**
+	 * 解析笔记链接：查找目标笔记的 link-wechat-mp frontmatter
+	 * @param linkpath 笔记路径或名称（从 wikilink 提取）
+	 * @param sourcePath 当前笔记路径（用于相对路径解析）
+	 * @returns 微信文章链接或 null
+	 */
+	resolveNoteLink(linkpath: string, sourcePath: string): string | null {
+		try {
+			const file = this.app.metadataCache.getFirstLinkpathDest(
+				linkpath,
+				sourcePath,
+			);
+			if (!file) return null;
 
-            const cache = this.app.metadataCache.getFileCache(file);
-            if (!cache?.frontmatter) return null;
+			const cache = this.app.metadataCache.getFileCache(file);
+			if (!cache?.frontmatter) return null;
 
-            const wechatUrl = cache.frontmatter["link-wechat-mp"];
-            return typeof wechatUrl === "string" ? wechatUrl : null;
-        } catch {
-            return null;
-        }
-    }
+			const wechatUrl = cache.frontmatter["link-wechat-mp"];
+			return typeof wechatUrl === "string" ? wechatUrl : null;
+		} catch {
+			return null;
+		}
+	}
 
-    convertWikiLinks(markdown: string, sourcePath: string): string {
-        // 1. 代码块保护：提取 ```...``` 和 `...` 用占位符替换
-        const codeBlocks: string[] = [];
-        let protectedMd = markdown
-            .replace(/```[\s\S]*?```/g, (m) => {
-                codeBlocks.push(m);
-                return `\uE000CODE${codeBlocks.length - 1}\uE000`;
-            })
-            .replace(/`[^`\n]+`/g, (m) => {
-                codeBlocks.push(m);
-                return `\uE000CODE${codeBlocks.length - 1}\uE000`;
-            });
+	convertWikiLinks(markdown: string, sourcePath: string): string {
+		// 1. 代码块保护：提取 ```...``` 和 `...` 用占位符替换
+		const codeBlocks: string[] = [];
+		let protectedMd = markdown
+			.replace(/```[\s\S]*?```/g, (m) => {
+				codeBlocks.push(m);
+				return `\uE000CODE${codeBlocks.length - 1}\uE000`;
+			})
+			.replace(/`[^`\n]+`/g, (m) => {
+				codeBlocks.push(m);
+				return `\uE000CODE${codeBlocks.length - 1}\uE000`;
+			});
 
-        // 2. 处理图片嵌入 ![[...]]（保持原有逻辑）
-        const wikiImageRegex = /!\[\[([^\]]*?)\]\]/g;
-        protectedMd = protectedMd.replace(
-            wikiImageRegex,
-            (_match: string, content: string) => {
-                let fileName = content;
-                let altText = "";
-                if (content.includes("|")) {
-                    const parts = content.split("|");
-                    fileName = parts[0] ?? "";
-                    altText = parts.slice(1).join("|");
-                }
-                fileName = fileName.trim();
-                const encodedPath = encodeURI(fileName);
-                return `![${altText}](${encodedPath})`;
-            },
-        );
+		// 2. 处理图片嵌入 ![[...]]（保持原有逻辑）
+		const wikiImageRegex = /!\[\[([^\]]*?)\]\]/g;
+		protectedMd = protectedMd.replace(
+			wikiImageRegex,
+			(_match: string, content: string) => {
+				let fileName = content;
+				let altText = "";
+				if (content.includes("|")) {
+					const parts = content.split("|");
+					fileName = parts[0] ?? "";
+					altText = parts.slice(1).join("|");
+				}
+				fileName = fileName.trim();
+				const encodedPath = encodeURI(fileName);
+				return `![${altText}](${encodedPath})`;
+			},
+		);
 
-        // 3. 处理笔记链接 [[...]]
-        const wikiLinkRegex = /\[\[([^\]]+?)\]\]/g;
-        protectedMd = protectedMd.replace(
-            wikiLinkRegex,
-            (_match: string, content: string) => {
-                let linkpath = content;
-                let displayText = content;
+		// 3. 处理笔记链接 [[...]]
+		const wikiLinkRegex = /\[\[([^\]]+?)\]\]/g;
+		protectedMd = protectedMd.replace(
+			wikiLinkRegex,
+			(_match: string, content: string) => {
+				let linkpath = content;
+				let displayText = content;
 
-                // 解析别名 [[note|alias]]
-                if (content.includes("|")) {
-                    const parts = content.split("|");
-                    linkpath = parts[0] ?? "";
-                    displayText = parts.slice(1).join("|");
-                }
+				// 解析别名 [[note|alias]]
+				if (content.includes("|")) {
+					const parts = content.split("|");
+					linkpath = parts[0] ?? "";
+					displayText = parts.slice(1).join("|");
+				}
 
-                // 解析标题 [[note#heading]]
-                if (linkpath.includes("#")) {
-                    const hashIdx = linkpath.indexOf("#");
-                    linkpath = linkpath.slice(0, hashIdx);
-                    // 如果没有别名，使用 heading 作为显示文本
-                    if (!content.includes("|")) {
-                        displayText = content.slice(content.indexOf("#") + 1);
-                    }
-                }
+				// 解析标题 [[note#heading]]
+				if (linkpath.includes("#")) {
+					const hashIdx = linkpath.indexOf("#");
+					linkpath = linkpath.slice(0, hashIdx);
+					// 如果没有别名，使用 heading 作为显示文本
+					if (!content.includes("|")) {
+						displayText = content.slice(content.indexOf("#") + 1);
+					}
+				}
 
-                linkpath = linkpath.trim();
-                displayText = displayText.trim();
+				linkpath = linkpath.trim();
+				displayText = displayText.trim();
 
-                // 如果 linkpath 为空（如 [[#heading]]），跳过
-                if (!linkpath) return `[${displayText}]`;
+				// 如果 linkpath 为空（如 [[#heading]]），跳过
+				if (!linkpath) return `[${displayText}]`;
 
-                // 查找目标笔记的 link-wechat-mp
-                const wechatUrl = this.resolveNoteLink(linkpath, sourcePath);
+				// 查找目标笔记的 link-wechat-mp
+				const wechatUrl = this.resolveNoteLink(linkpath, sourcePath);
 
-                if (wechatUrl) {
-                    // 有微信链接：生成标准 markdown 链接
-                    return `[${displayText}](${wechatUrl})`;
-                } else {
-                    // 无微信链接：生成带样式的 span
-                    return `<span class="wechat-note-link">${displayText}</span>`;
-                }
-            },
-        );
+				if (wechatUrl) {
+					// 有微信链接：生成标准 markdown 链接
+					return `[${displayText}](${wechatUrl})`;
+				} else {
+					// 无微信链接：生成带样式的 span
+					return `<span class="wechat-note-link">${displayText}</span>`;
+				}
+			},
+		);
 
-        // 4. 还原代码块
-        for (let i = 0; i < codeBlocks.length; i++) {
-            const block = codeBlocks[i];
-            if (block !== undefined) {
-                protectedMd = protectedMd.replace(
-                    `\uE000CODE${i}\uE000`,
-                    block,
-                );
-            }
-        }
+		// 4. 还原代码块
+		for (let i = 0; i < codeBlocks.length; i++) {
+			const block = codeBlocks[i];
+			if (block !== undefined) {
+				protectedMd = protectedMd.replace(
+					`\uE000CODE${i}\uE000`,
+					block,
+				);
+			}
+		}
 
-        return protectedMd;
-    }
+		return protectedMd;
+	}
 
-    // 修复：防止加粗文字和冒号被换行分开
-    preventBreakAfterStrong(html: string): string {
-        let result = html;
+	// 修复：防止加粗文字和冒号被换行分开
+	preventBreakAfterStrong(html: string): string {
+		let result = html;
 
-        // 针对用户提供的具体情况：</strong> 后面跟着 <section> 或其他标签，标签内有冒号
-        // 在 </strong> 和下一个标签之间插入零宽不换行空格
+		// 针对用户提供的具体情况：</strong> 后面跟着 <section> 或其他标签，标签内有冒号
+		// 在 </strong> 和下一个标签之间插入零宽不换行空格
 
-        // 1. 处理 </strong> 后面直接跟 < 的情况（标签开始）
-        result = result.replace(/(<\/strong>)(<)/g, "$1\uFEFF$2");
+		// 1. 处理 </strong> 后面直接跟 < 的情况（标签开始）
+		result = result.replace(/(<\/strong>)(<)/g, "$1\uFEFF$2");
 
-        // 2. 处理 </b> 后面直接跟 < 的情况
-        result = result.replace(/(<\/b>)(<)/g, "$1\uFEFF$2");
+		// 2. 处理 </b> 后面直接跟 < 的情况
+		result = result.replace(/(<\/b>)(<)/g, "$1\uFEFF$2");
 
-        // 3. 处理 </span>（加粗）后面直接跟 < 的情况
-        // 在所有 </span> 后面跟 < 的地方都插入
-        result = result.replace(/(<\/span>)(<)/g, "$1\uFEFF$2");
+		// 3. 处理 </span>（加粗）后面直接跟 < 的情况
+		// 在所有 </span> 后面跟 < 的地方都插入
+		result = result.replace(/(<\/span>)(<)/g, "$1\uFEFF$2");
 
-        // 4. 同时保留原来的直接跟冒号的处理
-        result = result.replace(/(<\/strong>)(\s*)([：:])/g, "$1\uFEFF$2$3");
-        result = result.replace(/(<\/b>)(\s*)([：:])/g, "$1\uFEFF$2$3");
-        result = result.replace(/(<\/span>)(\s*)([：:])/g, "$1\uFEFF$2$3");
+		// 4. 同时保留原来的直接跟冒号的处理
+		result = result.replace(/(<\/strong>)(\s*)([：:])/g, "$1\uFEFF$2$3");
+		result = result.replace(/(<\/b>)(\s*)([：:])/g, "$1\uFEFF$2$3");
+		result = result.replace(/(<\/span>)(\s*)([：:])/g, "$1\uFEFF$2$3");
 
-        return result;
-    }
+		return result;
+	}
 
-    // Replace <img> tags with text placeholders for WeChat copy (avoids base64 hang)
-    replaceImagesWithPlaceholders(html: string): string {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
-        const images = doc.getElementsByTagName("img");
-        for (let i = images.length - 1; i >= 0; i--) {
-            const img = images[i];
-            if (!img) continue;
-            const src = img.getAttribute("src") || "";
-            // Keep external HTTP images; replace local/base64 ones
-            if (src.startsWith("http")) continue;
-            const alt = img.getAttribute("alt") || "图片";
-            const placeholder = doc.createElement("p");
-            // eslint-disable-next-line obsidianmd/no-static-styles-assignment
-            placeholder.setAttribute(
-                "style",
-                "text-align:center;color:#999;font-size:14px;margin:16px 0",
-            );
-            placeholder.textContent = `【图片：${decodeURIComponent(src) || alt}】`;
-            img.replaceWith(placeholder);
-        }
-        return doc.body.innerHTML || doc.documentElement.innerHTML;
-    }
+	// Replace <img> tags with text placeholders for WeChat copy (avoids base64 hang)
+	replaceImagesWithPlaceholders(html: string): string {
+		const parser = new DOMParser();
+		const doc = parser.parseFromString(html, "text/html");
+		const images = doc.getElementsByTagName("img");
+		for (let i = images.length - 1; i >= 0; i--) {
+			const img = images[i];
+			if (!img) continue;
+			const src = img.getAttribute("src") || "";
+			// Keep external HTTP images; replace local/base64 ones
+			if (src.startsWith("http")) continue;
+			const alt = img.getAttribute("alt") || "图片";
+			const placeholder = doc.createElement("p");
+			// eslint-disable-next-line obsidianmd/no-static-styles-assignment
+			placeholder.setAttribute(
+				"style",
+				"text-align:center;color:#999;font-size:14px;margin:16px 0",
+			);
+			placeholder.textContent = `【图片：${decodeURIComponent(src) || alt}】`;
+			img.replaceWith(placeholder);
+		}
+		return doc.body.innerHTML || doc.documentElement.innerHTML;
+	}
 
-    // 核心逻辑：解析 HTML，查找 img 标签，将本地路径转为 Base64
-    async processImagesToBase64(
-        html: string,
-        sourcePath: string,
-    ): Promise<string> {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, "text/html");
+	// 核心逻辑：解析 HTML，查找 img 标签，将本地路径转为 Base64
+	async processImagesToBase64(
+		html: string,
+		sourcePath: string,
+	): Promise<string> {
+		const parser = new DOMParser();
+		const doc = parser.parseFromString(html, "text/html");
 
-        const images = doc.getElementsByTagName("img");
-        const promises: Promise<void>[] = [];
+		const images = doc.getElementsByTagName("img");
+		const promises: Promise<void>[] = [];
 
-        for (let i = 0; i < images.length; i++) {
-            const img = images[i];
-            if (!img) continue;
+		for (let i = 0; i < images.length; i++) {
+			const img = images[i];
+			if (!img) continue;
 
-            const src = img.getAttribute("src");
+			const src = img.getAttribute("src");
 
-            if (src) {
-                // 跳过网络图片和已经是 Base64 的图片
-                if (src.startsWith("http") || src.startsWith("data:")) {
-                    continue;
-                }
+			if (src) {
+				// 跳过网络图片和已经是 Base64 的图片
+				if (src.startsWith("http") || src.startsWith("data:")) {
+					continue;
+				}
 
-                const task = async () => {
-                    try {
-                        // 解码路径 (因为我们在 convertWikiLinks 里编码过)
-                        const decodedSrc = decodeURIComponent(src);
+				const task = async () => {
+					try {
+						// 解码路径 (因为我们在 convertWikiLinks 里编码过)
+						const decodedSrc = decodeURIComponent(src);
 
-                        // 使用 Obsidian API 解析文件路径
-                        const file =
-                            this.app.metadataCache.getFirstLinkpathDest(
-                                decodedSrc,
-                                sourcePath,
-                            );
+						// 使用 Obsidian API 解析文件路径
+						const file =
+							this.app.metadataCache.getFirstLinkpathDest(
+								decodedSrc,
+								sourcePath,
+							);
 
-                        if (file && file instanceof TFile) {
-                            const base64 = await this.readImageToBase64(file);
-                            img.setAttribute("src", base64);
-                        } else {
-                            console.warn("未找到图片文件:", decodedSrc);
-                        }
-                    } catch (e) {
-                        console.error("图片转换失败:", src, e);
-                    }
-                };
-                promises.push(task());
-            }
-        }
+						if (file && file instanceof TFile) {
+							const base64 = await this.readImageToBase64(file);
+							img.setAttribute("src", base64);
+						} else {
+							console.warn("未找到图片文件:", decodedSrc);
+						}
+					} catch (e) {
+						console.error("图片转换失败:", src, e);
+					}
+				};
+				promises.push(task());
+			}
+		}
 
-        // 等待所有图片处理完成
-        await Promise.all(promises);
-        return doc.body.innerHTML || doc.documentElement.innerHTML;
-    }
+		// 等待所有图片处理完成
+		await Promise.all(promises);
+		return doc.body.innerHTML || doc.documentElement.innerHTML;
+	}
 
-    // 解析 Obsidian Callout 语法（例如：> [!warning] 标题）
-    async readImageToBase64(file: TFile): Promise<string> {
-        const buffer = await this.app.vault.readBinary(file);
-        const arr = new Uint8Array(buffer);
+	// 解析 Obsidian Callout 语法（例如：> [!warning] 标题）
+	async readImageToBase64(file: TFile): Promise<string> {
+		const buffer = await this.app.vault.readBinary(file);
+		const arr = new Uint8Array(buffer);
 
-        // 简单的二进制转 Base64 字符串
-        let binary = "";
-        const len = arr.byteLength;
-        for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(arr[i]!);
-        }
-        const base64 = window.btoa(binary);
+		// 简单的二进制转 Base64 字符串
+		let binary = "";
+		const len = arr.byteLength;
+		for (let i = 0; i < len; i++) {
+			binary += String.fromCharCode(arr[i]!);
+		}
+		const base64 = window.btoa(binary);
 
-        // 根据扩展名判断 mime type
-        const ext = file.extension.toLowerCase();
-        const mimeMap: Record<string, string> = {
-            png: "image/png",
-            jpg: "image/jpeg",
-            jpeg: "image/jpeg",
-            gif: "image/gif",
-            webp: "image/webp",
-            svg: "image/svg+xml",
-        };
-        const mime = mimeMap[ext] || "image/jpeg";
+		// 根据扩展名判断 mime type
+		const ext = file.extension.toLowerCase();
+		const mimeMap: Record<string, string> = {
+			png: "image/png",
+			jpg: "image/jpeg",
+			jpeg: "image/jpeg",
+			gif: "image/gif",
+			webp: "image/webp",
+			svg: "image/svg+xml",
+		};
+		const mime = mimeMap[ext] || "image/jpeg";
 
-        return `data:${mime};base64,${base64}`;
-    }
+		return `data:${mime};base64,${base64}`;
+	}
 
-    async copyToClipboard(html: string, plainText: string) {
-        const { clipboard } = require("electron") as { clipboard: { write: (data: { text: string; html: string }) => void } };
-        clipboard.write({
-            text: plainText,
-            html: html,
-        });
+	async copyToClipboard(html: string, plainText: string) {
+		const { clipboard } = require("electron") as {
+			clipboard: {
+				write: (data: { text: string; html: string }) => void;
+			};
+		};
+		clipboard.write({
+			text: plainText,
+			html: html,
+		});
 		new Notice("✅ 已复制！图片与LaTeX公式已替换为占位符，请手动替换。");
-    }
+	}
 
-    async loadSettings() {
-        this.settings = Object.assign(
-            {},
-            DEFAULT_SETTINGS,
-            (await this.loadData()) as WechatPluginSettings,
-        );
-    }
+	async loadSettings() {
+		this.settings = Object.assign(
+			{},
+			DEFAULT_SETTINGS,
+			(await this.loadData()) as WechatPluginSettings,
+		);
+	}
 
-    async saveSettings() {
-        await this.saveData(this.settings);
-    }
+	async saveSettings() {
+		await this.saveData(this.settings);
+	}
 }
 
 class WechatSettingTab extends PluginSettingTab {
-    plugin: WechatCopyPlugin;
+	plugin: WechatCopyPlugin;
 
-    constructor(app: App, plugin: WechatCopyPlugin) {
-        super(app, plugin);
-        this.plugin = plugin;
-    }
+	constructor(app: App, plugin: WechatCopyPlugin) {
+		super(app, plugin);
+		this.plugin = plugin;
+	}
 
-    display(): void {
-        const { containerEl } = this;
-        containerEl.empty();
+	display(): void {
+		const { containerEl } = this;
+		containerEl.empty();
 
-        new Setting(containerEl).setName("WeChat formatting").setHeading();
+		new Setting(containerEl).setName("WeChat formatting").setHeading();
 
-        new Setting(containerEl)
-            .setName("Enable Quick Template Rename")
-            .setDesc(
-                "When enabled, a command 'Quick Template Rename' becomes available. It reads title-full-template from frontmatter, fills it with frontmatter values, and renames the current file."
-            )
-            .addToggle((toggle) =>
-                toggle
-                    .setValue(this.plugin.settings.enableTemplateRename)
-                    .onChange(async (value) => {
-                        this.plugin.settings.enableTemplateRename = value;
-                        await this.plugin.saveSettings();
-                    }),
-            );
+		new Setting(containerEl)
+			.setName("Enable Quick Template Rename")
+			.setDesc(
+				"When enabled, a command 'Quick Template Rename' becomes available. It reads title-full-template from frontmatter, fills it with frontmatter values, and renames the current file.",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableTemplateRename)
+					.onChange(async (value) => {
+						this.plugin.settings.enableTemplateRename = value;
+						await this.plugin.saveSettings();
+					}),
+			);
 
-        new Setting(containerEl)
-            .setName("Reset style")
-            .setDesc(
-                "Click to reset style to the default minimalist diary theme",
-            )
-            .addButton((button) =>
-                button.setButtonText("Reset").onClick(async () => {
-                    this.plugin.settings.customCSS = DEFAULT_CSS;
-                    await this.plugin.saveSettings();
-                    this.display(); // 刷新界面
-                    new Notice("Style reset!");
-                }),
-            );
+		new Setting(containerEl)
+			.setName("Reset style")
+			.setDesc(
+				"Click to reset style to the default minimalist diary theme",
+			)
+			.addButton((button) =>
+				button.setButtonText("Reset").onClick(async () => {
+					this.plugin.settings.customCSS = DEFAULT_CSS;
+					await this.plugin.saveSettings();
+					this.display(); // 刷新界面
+					new Notice("Style reset!");
+				}),
+			);
 
-        new Setting(containerEl)
-            .setName("Custom CSS")
-            .setDesc("Define the converted article style (CSS)")
-            .addTextArea((text) => {
-                text.setPlaceholder("Enter CSS...")
-                    .setValue(this.plugin.settings.customCSS)
-                    .onChange(async (value) => {
-                        this.plugin.settings.customCSS = value;
-                        await this.plugin.saveSettings();
-                    });
+		new Setting(containerEl)
+			.setName("Custom CSS")
+			.setDesc("Define the converted article style (CSS)")
+			.addTextArea((text) => {
+				text.setPlaceholder("Enter CSS...")
+					.setValue(this.plugin.settings.customCSS)
+					.onChange(async (value) => {
+						this.plugin.settings.customCSS = value;
+						await this.plugin.saveSettings();
+					});
 
-                text.inputEl.rows = 20;
-                text.inputEl.addClass("wechat-plugin-textarea");
-            });
-    }
+				text.inputEl.rows = 20;
+				text.inputEl.addClass("wechat-plugin-textarea");
+			});
+	}
 }

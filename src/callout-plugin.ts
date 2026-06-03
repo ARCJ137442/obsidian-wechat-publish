@@ -539,28 +539,33 @@ export default function preprocessCallouts(md: string): string {
  * </table>
  */
 export function postprocessCallouts(html: string): string {
-	const re = /<!--CALLOUT_START:([^>]+)-->\s*([\s\S]*?)\s*<!--CALLOUT_END-->/g;
+	const re =
+		/<!--CALLOUT_START:([^>]+)-->\s*([\s\S]*?)\s*<!--CALLOUT_END-->/g;
 
-	return html.replace(re, (_full: string, cType: string, bodyContent: string) => {
-		const theme = getActiveThemes()[cType] ?? getActiveThemes()["note"]!;
-		const iconHtml = theme.icon
-			? `<span class="wechat-callout-icon" style="display:inline-flex;align-items:center;margin-right:8px;color:var(--callout-title-color)">${getIconSvg(theme.icon)}</span>`
-			: "";
+	return html.replace(
+		re,
+		(_full: string, cType: string, bodyContent: string) => {
+			const theme =
+				getActiveThemes()[cType] ?? getActiveThemes()["note"]!;
+			const iconHtml = theme.icon
+				? `<span class="wechat-callout-icon" style="display:inline-flex;align-items:center;margin-right:8px;color:var(--callout-title-color)">${getIconSvg(theme.icon)}</span>`
+				: "";
 
-		// 分离标题和正文：标题是第一个 <p> 标签的内容
-		let titleHtml = theme.title || "Note";
-		let contentHtml = bodyContent;
+			// 分离标题和正文：标题是第一个 <p> 标签的内容
+			let titleHtml = theme.title || "Note";
+			let contentHtml = bodyContent;
 
-		const titleMatch = bodyContent.match(/^<p>([\s\S]*?)<\/p>/);
-		if (titleMatch) {
-			titleHtml = titleMatch[1];
-			// 移除第一个 <p> 标签，剩余作为正文
-			contentHtml = bodyContent.slice(titleMatch[0].length).trim();
-		}
+			const titleMatch = bodyContent.match(/^<p>([\s\S]*?)<\/p>/);
+			if (titleMatch) {
+				titleHtml = titleMatch[1] || "Note";
+				// 移除第一个 <p> 标签，剩余作为正文
+				contentHtml = bodyContent.slice(titleMatch[0].length).trim();
+			}
 
-		return `<table class="wechat-callout-table wechat-callout-${cType}" style="--callout-border:${theme.border};--callout-bg:${theme.bg};--callout-title-color:${theme.titleColor};--callout-title-bg:${theme.titleBg};width:100%;margin:20px 0;border-collapse:collapse;border-spacing:0"><tbody><tr><td style="border:none;border-left:3px solid var(--callout-border);background:var(--callout-bg);padding:12px 16px;border-radius:4px">
+			return `<table class="wechat-callout-table wechat-callout-${cType}" style="--callout-border:${theme.border};--callout-bg:${theme.bg};--callout-title-color:${theme.titleColor};--callout-title-bg:${theme.titleBg};width:100%;margin:20px 0;border-collapse:collapse;border-spacing:0"><tbody><tr><td style="border:none;border-left:3px solid var(--callout-border);background:var(--callout-bg);padding:12px 16px;border-radius:4px">
 <p style="margin:0 0 4px 0;font-size:14px;font-weight:600;line-height:1.6"><span class="wechat-callout-title" style="color:var(--callout-title-color);padding:0!important;background:transparent!important">${iconHtml}${titleHtml}</span></p>
 <div class="wechat-callout-body" style="margin:0;padding:0">${contentHtml}</div>
 </td></tr></tbody></table>\n`;
-	});
+		},
+	);
 }

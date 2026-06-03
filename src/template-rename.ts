@@ -52,9 +52,7 @@ export async function handleTemplateRename(
 
 	// Check if template actually resolved (no leftover placeholders)
 	if (/\{[^}]+\}/.test(newTitle)) {
-		new Notice(
-			`\u26a0\ufe0f 模板填充不完整：部分字段缺失\n${newTitle}`,
-		);
+		new Notice(`\u26a0\ufe0f 模板填充不完整：部分字段缺失\n${newTitle}`);
 		return;
 	}
 
@@ -66,7 +64,9 @@ export async function handleTemplateRename(
 
 	// Build new path: same directory, new basename + .md
 	const parentPath = file.parent ? file.parent.path : "";
-	const newPath = parentPath ? `${parentPath}/${newTitle}.md` : `${newTitle}.md`;
+	const newPath = parentPath
+		? `${parentPath}/${newTitle}.md`
+		: `${newTitle}.md`;
 
 	try {
 		await renameFile(file, newPath);
