@@ -8,7 +8,6 @@ import {
 	PluginSettingTab,
 	Setting,
 	TFile,
-	requestUrl,
 } from "obsidian";
 import MarkdownIt, { type PluginSimple } from "markdown-it";
 // @ts-ignore - no types available
@@ -394,50 +393,59 @@ function restoreEscapes(text: string): string {
 }
 
 /** Clean SVG for WeChat: strip xlink, use currentColor, pt units. */
-function cleanWechatSvg(svg: string): string {
-	svg = svg.replace(/<\?xml[^?]*\?>\s*/g, "");
-	svg = svg.replace(/<!--[^>]*-->\s*/g, "");
-	svg = svg.replace(/\s*xmlns:xlink=['"][^"']*['"]/g, "");
-	svg = svg.replace(/\s*version=['"][\d.]+['"]/g, "");
-	svg = svg.replace(/xlink:href/g, "href");
-	const wMatch = svg.match(/width='([\d.]+)pt'/);
-	const wPt = wMatch ? wMatch[1] : null;
-	svg = svg.replace(/\s*width='[\d.]+pt'/g, "");
-	svg = svg.replace(/\s*height='[\d.]+pt'/g, "");
-	// Pad viewBox to prevent tall glyphs (e.g. superscripts) from clipping
-	svg = svg.replace(/viewBox='([\d.\-\s]+)'/, (_m: string, vb: string) => {
-		const parts = vb.split(/\s+/).map(Number);
-		if (parts.length === 4) {
-			parts[1]! -= 6; // y - padding
-			parts[3]! += 12; // height + padding
+/** KaTeX rendering with system fonts (WeChat compatible) */
+const katex = require("katex") as typeof import("katex");
+
+// CSS to override KaTeX fonts with system fonts (for WeChat compatibility)
+const KATEX_SYSTEM_FONTS_CSS = `.katex,.katex *{font-family:'Times New Roman','STIX',serif !important;}`;
+
+function renderKatexFormula(formula: string, displayMode = false): string {
+	try {
+		const fullHtml = katex.renderToString(formula, {
+			throwOnError: false,
+			displayMode,
+		});
+
+		// Extract only the visual HTML part (katex-html), exclude MathML and raw formula
+		const htmlMatch = fullHtml.match(
+			/<span class="katex-html"[^>]*>[\s\S]*?<\/span>\s*<\/span>/,
+		);
+		if (htmlMatch) {
+			let html = htmlMatch[0];
+
+			// Add essential inline styles for WeChat compatibility
+			// KaTeX relies on complex CSS that doesn't inline well, so we add critical styles
+			html = html.replace(
+				/<span class="katex-html"/,
+				'<span class="katex-html" style="font-size:1.21em;line-height:1.2;position:relative;display:inline-block"',
+			);
+
+			return html;
 		}
-		return `viewBox='${parts.join(" ")}'`;
-	});
-	let attrs = 'style="vertical-align:middle;"';
-	if (wPt) attrs += ` width="${wPt}pt"`;
-	svg = svg.replace("<svg ", `<svg ${attrs} `);
-	svg = svg.replace(/<g /g, '<g fill="currentColor" ');
-	svg = svg.replace(/<use /g, '<use fill="currentColor" ');
-	return svg.trim();
+
+		// Fallback: return full output
+		return fullHtml;
+	} catch (e) {
+		console.warn("[wechat-publish] KaTeX render failed:", e);
+		return `<code>${escapeHtml(formula)}</code>`;
+	}
 }
 
-/** Render LaTeX for Preview (SVG via codecogs) or Copy (text placeholder). */
+/** Get KaTeX CSS for inlining (used in copy pipeline) */
+function getKatexCss(): string {
+	return KATEX_SYSTEM_FONTS_CSS;
+}
+
+/** Render LaTeX for Preview (KaTeX) or Copy (text placeholder). */
 async function renderLatexSvg(
 	formula: string,
 	forCopy = false,
+	displayMode = false,
 ): Promise<string> {
+	// 复制版使用文本占位符（MathJax SVG 在 esbuild 打包环境中无法工作）
 	if (forCopy) return `【公式：${escapeHtml(formula)}】`;
-	try {
-		const encoded = encodeURIComponent(formula);
-		const url = `https://latex.codecogs.com/svg.latex?\\color{black}%20${encoded}`;
-		const resp = await requestUrl({
-			url,
-			headers: { "User-Agent": "Mozilla/5.0" },
-		});
-		return cleanWechatSvg(resp.text);
-	} catch {
-		return `<code>${escapeHtml(formula)}</code>`;
-	}
+
+	return renderKatexFormula(formula, displayMode);
 }
 
 function escapeHtml(text: string): string {
@@ -691,18 +699,18 @@ export default class WechatCopyPlugin extends Plugin {
 		const unescaped = mdUnescape(normalized);
 
 		// 3. LaTeX $...$ → placeholder tokens (preserve raw formula for API)
-		const latexMap = new Map<string, string>();
+		const latexMap = new Map<string, { formula: string; displayMode: boolean }>();
 		let latexIdx = 0;
 		const withLatexPH = unescaped
 			.replace(/\$\$([\s\S]+?)\$\$/g, (_m, f: string) => {
 				const ph = `\uE000LATEX${latexIdx}\uE000`;
-				latexMap.set(ph, f.trim());
+				latexMap.set(ph, { formula: f.trim(), displayMode: true });
 				latexIdx++;
 				return ph;
 			})
 			.replace(/\$(.+?)\$/g, (_m, f: string) => {
 				const ph = `\uE000LATEX${latexIdx}\uE000`;
-				latexMap.set(ph, f.trim());
+				latexMap.set(ph, { formula: f.trim(), displayMode: false });
 				latexIdx++;
 				return ph;
 			});
@@ -720,10 +728,10 @@ export default class WechatCopyPlugin extends Plugin {
 		// 6. Fix bold-colon break
 		html = this.preventBreakAfterStrong(html);
 
-		// 7. Resolve LaTeX placeholders → SVG (async)
-		for (const [ph, formula] of latexMap) {
-			const svg = await renderLatexSvg(formula, forCopy);
-			html = html.split(ph).join(svg);
+		// 7. Resolve LaTeX placeholders → HTML (async)
+		for (const [ph, { formula, displayMode }] of latexMap) {
+			const rendered = await renderLatexSvg(formula, forCopy, displayMode);
+			html = html.split(ph).join(rendered);
 		}
 
 		// 8. Image → Base64
@@ -944,7 +952,7 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 			);
 			// Strip @media blocks (WeChat handles dark mode on its own; they can't be juice-inlined)
 			const renderCSS = this.getCopyCSS();
-			const fullHtml = `<div class="wechat-content"><style>${renderCSS}</style>${bodyHtml}</div>`;
+			const fullHtml = `<div class="wechat-content"><style>${renderCSS}${getKatexCss()}</style>${bodyHtml}</div>`;
 			const inlinedHtml = juice(fullHtml);
 			// Use stripped rendered text as plain-text fallback, not raw markdown
 			const plainText = bodyHtml

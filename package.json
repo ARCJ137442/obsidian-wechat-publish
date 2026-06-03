@@ -35,9 +35,11 @@
 	},
 	"dependencies": {
 		"juice": "^11.1.0",
+		"katex": "^0.17.0",
 		"lucide-static": "^1.16.0",
 		"markdown-it": "^14.1.0",
 		"markdown-it-mark": "^4.0.0",
+		"mathjax-full": "^3.2.1",
 		"obsidian": "latest"
 	}
 }

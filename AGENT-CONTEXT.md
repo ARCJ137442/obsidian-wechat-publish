@@ -24,7 +24,7 @@
 | Preview in Browser | ✅ 完成 | 浏览器预览，支持暗色模式切换 |
 | Copy to WeChat | ✅ 完成 | 复制到微信公众号编辑器，juice 内联 CSS |
 | Callout 支持 | ✅ 完成 | 8 种内置类型 + 自定义类型，lucide SVG 图标 |
-| LaTeX 渲染 | ✅ 部分完成 | 预览版 SVG 渲染，复制版文本占位符 |
+| LaTeX 渲染 | ✅ 部分完成 | 预览版 KaTeX 渲染，复制版文本占位符 |
 | 暗色模式 | ✅ 完成 | 预览版 @media，复制版内联 !important |
 | Wikilinks 转换 | ✅ 完成 | `[[note]]` → 微信链接或蓝色下划线占位 |
 | 图片处理 | ✅ 完成 | 预览版 Base64，复制版占位符 |
@@ -34,11 +34,58 @@
 
 | 问题 | 严重度 | 说明 |
 |------|--------|------|
-| LaTeX SVG 渲染失败 | 中 | Bug 1: `$E=mc^2$` 未渲染为 SVG（remaining-bugs.test.ts） |
+| LaTeX 复制版无法显示 | 中 | 复制到微信后公式不显示（当前用文本占位符） |
 | Callout 暗色模式不支持 | 低 | Bug 2: wechat-theme.css 缺少暗色模式规则（**已决定暂不修复**，半透明效果已适配） |
 | `<mark>` 暗色模式不支持 | 低 | Bug 3: 高亮文字暗色模式下不可见 |
 
-> 以上问题在 `tests/remaining-bugs.test.ts` 中有记录，已有缓解方式。
+---
+
+## LaTeX 渲染详细分析（2026-06-03 调查）
+
+### 问题根因
+
+**为什么 Callout SVG 能在微信显示，但 LaTeX SVG 不能？**
+
+| SVG 类型 | 绘制方式 | 字体依赖 | 微信兼容性 |
+|----------|----------|----------|------------|
+| Callout Lucide | `<path>` 矢量路径 | 无 | ✅ 正常显示 |
+| LaTeX codecogs | `<text>` 文本填充 | Avenir-Black | ❌ 内容消失 |
+
+**结论**：微信编辑器会剥离 SVG 中的字体依赖，导致基于文本的 SVG 失效。
+
+### 尝试的解决方案
+
+| 方案 | 结果 | 失败原因 |
+|------|------|----------|
+| MathJax SVG（动态 import） | ❌ 失败 | `handlers` 未定义，esbuild 打包后全局状态丢失 |
+| MathJax SVG（静态 import） | ❌ 失败 | 插件加载时尝试加载不存在的模块 |
+| KaTeX HTML + juice 内联 CSS | ⚠️ 部分成功 | CSS 定位规则复杂，juice 无法正确内联 |
+| KaTeX 预览 + 文本占位符复制 | ✅ 当前方案 | 可用但不理想 |
+
+### 当前方案
+
+- **预览版**：KaTeX 渲染 HTML（CSS 完整，效果好）
+- **复制版**：文本占位符 `【公式：...】`（可靠但不美观）
+
+### 技术细节
+
+**KaTeX 输出结构**：
+```html
+<span class="katex">
+  <span class="katex-mathml">MathML（无障碍访问）</span>
+  <span class="katex-html">视觉渲染（CSS 定位）</span>
+</span>
+```
+
+**为什么 juice 内联失败**：
+- KaTeX 使用复杂 CSS 定位（`strut`、`vlist`、`pstrut`）
+- 依赖 `position: relative` + `top` 偏移
+- `juice` 无法正确处理这些定位规则
+
+**MathJax 失败原因**：
+- esbuild 打包破坏了 MathJax 的全局状态
+- `RegisterHTMLHandler` 需要访问 `mathjax.handlers`
+- 动态/静态导入都无法正确初始化
 
 ---
 
@@ -46,13 +93,10 @@
 
 ### 高优先级
 
+- [ ] **LaTeX 复制版渲染**：寻找能在 esbuild 中工作的 LaTeX-to-SVG 方案
 - [ ] **`<mark>` 暗色模式修复**：确保高亮文字在暗色模式下可见
 
 ### 中优先级
-
-- [ ] **LaTeX 渲染优化**：调查 codecogs API 渲染失败的原因
-
-### 低优先级
 
 - [ ] **图片链接优化**：支持 `![[image.png|200]]` 语法的尺寸控制
 - [ ] **表格样式增强**：优化微信公众号中的表格显示
@@ -187,6 +231,8 @@ npm run deploy -- <vault-root>  # 部署到 Obsidian 仓库
   - Prettier 格式化所有源文件
 - ✅ **Quick Template Rename 改进**：改用 `fileManager.renameFile`（Obsidian 官方推荐）
 - ✅ **工程止血**：`.gitignore` 添加 `*.stackdump`，`.npmrc` 固定 peer 策略
+- ✅ **LaTeX 渲染改进**：预览版改用 KaTeX（本地渲染，不依赖网络）
+- ⚠️ **LaTeX 复制版调查**：MathJax SVG 在 esbuild 打包环境中无法工作，暂时使用文本占位符
 
 ### 2026-05-27
 
