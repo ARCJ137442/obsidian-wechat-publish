@@ -8,9 +8,9 @@
 ## 项目概况
 
 - **项目名称**：obsidian-wechat-publish
-- **版本**：v1.0.6
+- **版本**：v1.0.7
 - **许可证**：MIT
-- **测试**：127 + 16 = 143 个 vitest 测试（TDD 驱动）
+- **测试**：162 个 vitest 测试（TDD 驱动）
 - **定位**：将 Obsidian Markdown 文章一键复制到微信公众号，支持"简约日记风"主题
 
 ---
@@ -89,7 +89,7 @@ Obsidian MD (.md)
 |------|------|
 | `src/main.ts` | 插件主逻辑，所有渲染管线 |
 | `wechat-theme.css` | 独立的微信主题 CSS（207 行） |
-| `tests/*.test.ts` | 143 个 vitest 测试 |
+| `tests/*.test.ts` | 162 个 vitest 测试 |
 | `docs/preview-vs-copy.md` | 预览版 vs 复制版对比文档 |
 
 ### CSS 策略
@@ -175,6 +175,18 @@ npm run deploy -- <vault-root>  # 部署到 Obsidian 仓库
 ---
 
 ## 更新日志
+
+### 2026-06-03
+
+- ✅ **CI 修复**：ESLint 错误从 65 → 0，CI 现在全部通过
+  - 放宽 `no-console` 规则，保留调试日志（Obsidian DevTools 需要）
+  - ESLint 配置：为 `main.ts` 启用 Node.js globals，允许 `require` 调用
+  - 修复类型：`http.Server`、`setTimeout`、`electron.shell`、`electron.clipboard`
+  - 修复类型：callout replace 回调参数、`template-fill` 字符串处理
+  - 移除未使用的 `metaBlock` 和 `tempResult` 变量
+  - Prettier 格式化所有源文件
+- ✅ **Quick Template Rename 改进**：改用 `fileManager.renameFile`（Obsidian 官方推荐）
+- ✅ **工程止血**：`.gitignore` 添加 `*.stackdump`，`.npmrc` 固定 peer 策略
 
 ### 2026-05-27
 
