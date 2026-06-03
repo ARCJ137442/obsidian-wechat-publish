@@ -541,7 +541,7 @@ export default function preprocessCallouts(md: string): string {
 export function postprocessCallouts(html: string): string {
 	const re = /<!--CALLOUT_START:([^>]+)-->\s*([\s\S]*?)\s*<!--CALLOUT_END-->/g;
 
-	return html.replace(re, (_full, cType, bodyContent) => {
+	return html.replace(re, (_full: string, cType: string, bodyContent: string) => {
 		const theme = getActiveThemes()[cType] ?? getActiveThemes()["note"]!;
 		const iconHtml = theme.icon
 			? `<span class="wechat-callout-icon" style="display:inline-flex;align-items:center;margin-right:8px;color:var(--callout-title-color)">${getIconSvg(theme.icon)}</span>`

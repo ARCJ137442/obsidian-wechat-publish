@@ -18,7 +18,7 @@ export function fillTemplate(
 		(_match: string, key: string, fmt: string | undefined) => {
 			const val = vars[key];
 			if (val === undefined) return _match;
-			if (!fmt) return String(val);
+			if (!fmt) return typeof val === "string" ? val : JSON.stringify(val);
 
 			let fill = " ";
 			let align = "";
@@ -63,7 +63,7 @@ export function fillTemplate(
 			if (fmt) fill = fmt;
 			if (!align) align = ">";
 
-			let result = String(val);
+			let result = typeof val === "string" ? val : JSON.stringify(val);
 			if (type === "d") result = parseInt(result, 10).toString();
 			else if (type === "f") result = parseFloat(result).toFixed(2);
 			else if (type === "x") result = parseInt(result, 10).toString(16);

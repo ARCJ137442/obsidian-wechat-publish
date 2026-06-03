@@ -10,7 +10,7 @@ import {
     TFile,
     requestUrl,
 } from "obsidian";
-import MarkdownIt from "markdown-it";
+import MarkdownIt, { type PluginSimple } from "markdown-it";
 // @ts-ignore - no types available
 import markdownItMark from "markdown-it-mark";
 import juice from "juice";
@@ -547,7 +547,7 @@ export default class WechatCopyPlugin extends Plugin {
         this.addSettingTab(new WechatSettingTab(this.app, this));
     }
 
-    async onunload() {
+    onunload() {
         if (this._previewServer) {
             clearTimeout(this._previewServerTimeout);
             this._previewServer.close();
@@ -560,13 +560,12 @@ export default class WechatCopyPlugin extends Plugin {
         console.log("[wechat-publish] loadCalloutManagerThemes: 开始执行");
         try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const vaultBase = (this.app.vault.adapter as any).getBasePath?.() ?? this.app.vault.adapter.getResourcePath("/");
+            const vaultBase = (this.app.vault.adapter as any).getBasePath?.() as string | undefined ?? this.app.vault.adapter.getResourcePath("/");
             const cmPath = `${vaultBase}/.obsidian/plugins/callout-manager/data.json`;
             console.log("[wechat-publish] loadCalloutManagerThemes: vault 根目录:", vaultBase);
             console.log("[wechat-publish] loadCalloutManagerThemes: 拼接后路径:", cmPath);
 
             // 使用 Node.js fs 读取（Obsidian 插件上下文可用 require('fs')）
-            // eslint-disable-next-line @typescript-eslint/no-var-requires
             const fs = require("fs") as typeof import("fs");
             if (!fs.existsSync(cmPath)) {
                 console.log("[wechat-publish] loadCalloutManagerThemes: 文件不存在，跳过（这是正常的如果未安装 callout-manager）");
@@ -599,9 +598,9 @@ export default class WechatCopyPlugin extends Plugin {
                 `• 当前主题总数：${totalColors} 种\n` +
                 `• 被覆盖的内置类型：${overridden.length} 种（${overridden.join(", ") || "无"}）`,
             );
-        } catch (e) {
-            console.error("[wechat-publish] loadCalloutManagerThemes: 错误:", e);
-            new Notice(`❌ Callout 主题加载失败: ${e}`);
+        } catch (e: unknown) {
+            console.error("[wechat-publish] loadCalloutManagerThemes: 错误:", e instanceof Error ? e.message : String(e));
+            new Notice(`❌ Callout 主题加载失败: ${e instanceof Error ? e.message : String(e)}`);
         }
     }
 
@@ -671,7 +670,7 @@ export default class WechatCopyPlugin extends Plugin {
 
         // 4. markdown-it with plugins
         const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
-        md.use(markdownItMark); // ==highlight== → <mark>
+        md.use(markdownItMark as PluginSimple); // ==highlight== → <mark>
         const preprocessed = preprocessCallouts(withLatexPH);
         let html = md.render(preprocessed);
         html = postprocessCallouts(html); // ← 恢复 callout 结构
@@ -698,8 +697,8 @@ export default class WechatCopyPlugin extends Plugin {
 
     // ── Command: Preview in Browser ──
     // Track active preview server to close on next invocation
-    private _previewServer: any = null;
-    private _previewServerTimeout: any = null;
+    private _previewServer: import("http").Server | null = null;
+    private _previewServerTimeout: ReturnType<typeof setTimeout> | null = null;
 
     async processAndPreview(markdown: string, currentPath: string) {
         new Notice("正在生成预览...");
@@ -722,14 +721,6 @@ export default class WechatCopyPlugin extends Plugin {
 
             const bodyHtml = await this.processMarkdown(mdBody, currentPath);
 
-            const metaBlock = `
-			<div class="article-meta">
-				<h1 class="article-title">${this.escapeHtml(title)}</h1>
-				<div class="article-info">
-					<span class="article-author">${this.escapeHtml(author)}</span>
-					${date ? `<span class="article-date">${this.escapeHtml(date)}</span>` : ""}
-				</div>
-			</div>`;
 
             const renderCSS = this.getRenderCSS();
             const fullHtml = `<!DOCTYPE html>
@@ -867,7 +858,7 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 </body></html>`;
             // Serve via local HTTP to avoid file:// CORS issues with inline SVG
             const http = require("http") as typeof import("http");
-            const server = http.createServer((_req: any, res: any) => {
+            const server = http.createServer((_req: import("http").IncomingMessage, res: import("http").ServerResponse) => {
                 res.writeHead(200, {
                     "Content-Type": "text/html; charset=utf-8",
                 });
@@ -879,7 +870,7 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
             const addr = server.address() as { port: number };
             const url = `http://127.0.0.1:${addr.port}`;
 
-            const { shell } = require("electron");
+            const { shell } = require("electron") as { shell: { openExternal: (url: string) => Promise<void> } };
             await shell.openExternal(url);
 
             // Track & auto-close: keep alive 30s for refreshes, close on next preview
@@ -1079,10 +1070,7 @@ ${CALLOUT_FALLBACK_CSS}`;
         result = result.replace(/(<\/b>)(<)/g, "$1\uFEFF$2");
 
         // 3. 处理 </span>（加粗）后面直接跟 < 的情况
-        // 先用一个临时标记处理带 font-weight 的 span
-        let tempResult = result;
-        // 匹配带 font-weight 的 span 从开始到结束
-        // 这里采用简化方法：在所有 </span> 后面跟 < 的地方都插入
+        // 在所有 </span> 后面跟 < 的地方都插入
         result = result.replace(/(<\/span>)(<)/g, "$1\uFEFF$2");
 
         // 4. 同时保留原来的直接跟冒号的处理
@@ -1106,6 +1094,7 @@ ${CALLOUT_FALLBACK_CSS}`;
             if (src.startsWith("http")) continue;
             const alt = img.getAttribute("alt") || "图片";
             const placeholder = doc.createElement("p");
+            // eslint-disable-next-line obsidianmd/no-static-styles-assignment
             placeholder.setAttribute(
                 "style",
                 "text-align:center;color:#999;font-size:14px;margin:16px 0",
@@ -1199,7 +1188,7 @@ ${CALLOUT_FALLBACK_CSS}`;
     }
 
     async copyToClipboard(html: string, plainText: string) {
-        const { clipboard } = require("electron");
+        const { clipboard } = require("electron") as { clipboard: { write: (data: { text: string; html: string }) => void } };
         clipboard.write({
             text: plainText,
             html: html,
