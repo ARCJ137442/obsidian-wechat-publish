@@ -43572,7 +43572,7 @@ function ensureInit() {
   adaptor = liteAdaptorExports.liteAdaptor();
   htmlExports.RegisterHTMLHandler(adaptor);
   const input = new texExports.TeX({ packages: AllPackagesExports.AllPackages });
-  const output = new svgExports.SVG({ fontCache: "local" });
+  const output = new svgExports.SVG({ fontCache: "none" });
   htmlDoc = mathjaxExports.mathjax.document("", {
     InputJax: input,
     OutputJax: output

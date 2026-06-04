@@ -27,7 +27,7 @@ function ensureInit() {
 	RegisterHTMLHandler(adaptor);
 
 	const input = new TeX({ packages: AllPackages });
-	const output = new SVG({ fontCache: "local" });
+	const output = new SVG({ fontCache: "none" });
 
 	htmlDoc = mathjax.document("", {
 		InputJax: input,

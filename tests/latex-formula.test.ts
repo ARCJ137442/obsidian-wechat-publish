@@ -144,4 +144,38 @@ describe('MathJax SVG rendering', () => {
 		expect(svg).not.toContain('xlink:href');
 		expect(svg).not.toContain('id="MJX');
 	});
+
+	skipIfNoModule('large matrix brackets have scale transforms', () => {
+		// TDD: Large matrix (4×4) with \left[...\right] should produce
+		// scale transforms on bracket elements to stretch them to fit content.
+		// Without this, brackets render at fixed height and don't cover the matrix.
+		const bs = String.fromCharCode(92);
+		const formula = bs + 'left[' + bs + 'begin{matrix}1 & 2 & 3 & 4' + bs + bs +
+			'5 & 6 & 7 & 8' + bs + bs + '9 & 10 & 11 & 12' + bs + bs +
+			'13 & 14 & 15 & 16' + bs + 'end{matrix}' + bs + 'right]';
+		const svg = tex2svg!(formula, true);
+
+		// Check that scale transforms exist for bracket stretching
+		const scaleMatches = svg.match(/scale\(\s*1\s*,\s*[0-9.]+\s*\)/g);
+		expect(scaleMatches).toBeTruthy();
+		expect(scaleMatches!.length).toBeGreaterThanOrEqual(2); // left + right bracket
+
+		// The scale factor should be > 1 for a 4×4 matrix (brackets need to stretch)
+		const scaleFactor = parseFloat(scaleMatches![0]!.match(/scale\(\s*1\s*,\s*([0-9.]+)/)![1]!);
+		expect(scaleFactor).toBeGreaterThan(1.5);
+	});
+
+	skipIfNoModule('2x2 matrix brackets do not need scale transforms', () => {
+		// TDD: Small matrix (2×2) should render without excessive bracket scaling
+		const bs = String.fromCharCode(92);
+		const formula = bs + 'left[' + bs + 'begin{matrix}1 & 2' + bs + bs + '3 & 4' + bs + 'end{matrix}' + bs + 'right]';
+		const svg = tex2svg!(formula, false);
+
+		// Either no scale transforms, or scale factor close to 1
+		const scaleMatches = svg.match(/scale\(\s*1\s*,\s*([0-9.]+)/g);
+		if (scaleMatches && scaleMatches.length > 0) {
+			const factor = parseFloat(scaleMatches[0]!.match(/scale\(\s*1\s*,\s*([0-9.]+)/)![1]!);
+			expect(factor).toBeLessThan(1.5);
+		}
+	});
 });
