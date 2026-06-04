@@ -43578,11 +43578,32 @@ function ensureInit() {
     OutputJax: output
   });
 }
+function inlineSvgUses(svgHtml) {
+  const pathMap = /* @__PURE__ */ new Map();
+  const pathRegex = /<path\s+id="([^"]+)"([^>]*)>/g;
+  let match;
+  while ((match = pathRegex.exec(svgHtml)) !== null) {
+    const id = match[1];
+    const attrs = match[2];
+    pathMap.set(id, `<path${attrs}>`);
+  }
+  if (pathMap.size === 0) return svgHtml;
+  let result = svgHtml;
+  for (const [id, pathReplacement] of pathMap) {
+    const useRegex = new RegExp(
+      `<use[^>]*(?:xlink:)?href="#${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"[^>]*>`,
+      "g"
+    );
+    result = result.replace(useRegex, pathReplacement);
+  }
+  result = result.replace(/<defs>[\s\S]*?<\/defs>/, "");
+  return result;
+}
 function tex2svg(formula, display = false) {
   ensureInit();
   const node = htmlDoc.convert(formula, { display });
   const svgHtml = adaptor.innerHTML(node);
-  return svgHtml;
+  return inlineSvgUses(svgHtml);
 }
 
 exports.tex2svg = tex2svg;
