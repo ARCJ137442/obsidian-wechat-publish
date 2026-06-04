@@ -48,8 +48,8 @@ function inlineSvgUses(svgHtml: string): string {
 	const pathRegex = /<path\s+id="([^"]+)"([^>]*)>/g;
 	let match: RegExpExecArray | null;
 	while ((match = pathRegex.exec(svgHtml)) !== null) {
-		const id = match[1];
-		const attrs = match[2];
+		const id = match[1] as string;
+		const attrs = match[2] as string;
 		pathMap.set(id, `<path${attrs}>`);
 	}
 
