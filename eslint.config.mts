@@ -45,6 +45,20 @@ export default tseslint.config(
 			"@typescript-eslint/no-unsafe-assignment": "off",
 		},
 	},
+	{
+		files: ["src/mathjax-svg.ts"],
+		languageOptions: {
+			globals: {
+				...globals.node,
+			},
+		},
+		rules: {
+			"@typescript-eslint/no-unsafe-assignment": "off",
+			"@typescript-eslint/no-unsafe-argument": "off",
+			"import/no-nodejs-modules": "off",
+			"@typescript-eslint/no-require-imports": "off",
+		},
+	},
 	globalIgnores([
 		"node_modules",
 		"dist",
@@ -53,5 +67,6 @@ export default tseslint.config(
 		"version-bump.mjs",
 		"versions.json",
 		"main.js",
+		"mathjax-svg.js",
 	]),
 );

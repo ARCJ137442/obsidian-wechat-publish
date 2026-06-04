@@ -34,7 +34,7 @@
 
 | 问题 | 严重度 | 说明 |
 |------|--------|------|
-| LaTeX 复制版待验证 | 中 | rollup + mathjax-full SVG 模块已实现，Node.js 测试通过（path-based SVG），待 Obsidian 环境验证 |
+| LaTeX 复制版已验证 | ✅ 已解决 | rollup + mathjax-full SVG 模块已实现并验证通过（2026-06-04） |
 | Callout 暗色模式不支持 | 低 | Bug 2: wechat-theme.css 缺少暗色模式规则（**已决定暂不修复**，半透明效果已适配） |
 | `<mark>` 暗色模式不支持 | 低 | Bug 3: 高亮文字暗色模式下不可见 |
 
@@ -85,10 +85,10 @@ tex2svg('E = mc^2', false) → SVG 3705 bytes, <path> ✅, <text> ❌
 tex2svg('ax^2 + bx + c = 0', true) → SVG 4938 bytes, <path> ✅
 ```
 
-### 当前方案
+### 渲染方案（已验证）
 
 - **预览版**：KaTeX 渲染 HTML（CSS 完整，效果好）
-- **复制版**：文本占位符 `【公式：...】`（可靠但不美观）
+- **复制版**：MathJax SVG（`<path>` 内联，微信兼容，2026-06-04 验证通过）
 
 ### 技术细节
 
@@ -116,7 +116,7 @@ tex2svg('ax^2 + bx + c = 0', true) → SVG 4938 bytes, <path> ✅
 
 ### 高优先级
 
-- [ ] **LaTeX 复制版 Obsidian 验证**：Node.js 测试通过，需要在 Obsidian 环境中实际验证 SVG 粘贴到微信后的显示效果
+- [x] **LaTeX 复制版 Obsidian 验证**：2026-06-04 在微信公众号后台验证通过，所有公式清晰显示
 - [ ] **`<mark>` 暗色模式修复**：确保高亮文字在暗色模式下可见
 
 ### 中优先级
