@@ -85,10 +85,10 @@ tex2svg('E = mc^2', false) → SVG 3705 bytes, <path> ✅, <text> ❌
 tex2svg('ax^2 + bx + c = 0', true) → SVG 4938 bytes, <path> ✅
 ```
 
-### 渲染方案（已验证）
+### 渲染方案（2026-06-04 验证通过，已发布公众号文章）
 
 - **预览版**：KaTeX 渲染 HTML（CSS 完整，效果好）
-- **复制版**：MathJax SVG（`<path>` 内联，微信兼容，2026-06-04 验证通过）
+- **复制版**：MathJax SVG（`<path>` 内联，fontCache:none 确保大矩阵括号缩放正确，2026-06-04 验证通过）
 
 ### 技术细节
 
