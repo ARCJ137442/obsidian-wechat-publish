@@ -668,13 +668,10 @@ export default class WechatCopyPlugin extends Plugin {
 		// 1. WikiLink normalization
 		const normalized = this.convertWikiLinks(markdown, currentPath);
 
-		// 2. Backslash unescape → placeholders (before any parsing)
-		const unescaped = mdUnescape(normalized);
-
-		// 3. LaTeX $...$ → placeholder tokens (preserve raw formula for API)
+		// 2. LaTeX $...$ → placeholder tokens (BEFORE mdUnescape to preserve \\ in formulas)
 		const latexMap = new Map<string, { formula: string; displayMode: boolean }>();
 		let latexIdx = 0;
-		const withLatexPH = unescaped
+		const withLatexPH = normalized
 			.replace(/\$\$([\s\S]+?)\$\$/g, (_m, f: string) => {
 				const ph = `\uE000LATEX${latexIdx}\uE000`;
 				latexMap.set(ph, { formula: f.trim(), displayMode: true });
@@ -688,10 +685,13 @@ export default class WechatCopyPlugin extends Plugin {
 				return ph;
 			});
 
+		// 3. Backslash unescape → placeholders (after LaTeX extraction)
+		const unescaped = mdUnescape(withLatexPH);
+
 		// 4. markdown-it with plugins
 		const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
 		md.use(markdownItMark as PluginSimple); // ==highlight== → <mark>
-		const preprocessed = preprocessCallouts(withLatexPH);
+		const preprocessed = preprocessCallouts(unescaped);
 		let html = md.render(preprocessed);
 		html = postprocessCallouts(html); // ← 恢复 callout 结构
 
