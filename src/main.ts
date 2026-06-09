@@ -392,34 +392,8 @@ function restoreEscapes(text: string): string {
 	return result;
 }
 
-/** KaTeX rendering with system fonts (preview mode) */
-const katex = require("katex") as typeof import("katex");
-
-// MathJax SVG renderer (copy mode) — built separately with rollup
+// MathJax SVG renderer — built separately with rollup
 let mathjaxSvgModule: { tex2svg: (formula: string, display: boolean) => string } | null = null;
-
-function renderKatexFormula(formula: string, displayMode = false): string {
-	try {
-		const fullHtml = katex.renderToString(formula, {
-			throwOnError: false,
-			displayMode,
-		});
-
-		// Extract only the visual HTML part (katex-html), exclude MathML and raw formula
-		const htmlMatch = fullHtml.match(
-			/<span class="katex-html"[^>]*>[\s\S]*?<\/span>\s*<\/span>/,
-		);
-		if (htmlMatch) {
-			return htmlMatch[0];
-		}
-
-		// Fallback: return full output
-		return fullHtml;
-	} catch (e) {
-		console.warn("[wechat-publish] KaTeX render failed:", e);
-		return `<code>${escapeHtml(formula)}</code>`;
-	}
-}
 
 function escapeHtml(text: string): string {
 	return text
@@ -701,14 +675,9 @@ export default class WechatCopyPlugin extends Plugin {
 		// 6. Fix bold-colon break
 		html = this.preventBreakAfterStrong(html);
 
-		// 7. Resolve LaTeX placeholders → HTML (async)
+		// 7. Resolve LaTeX placeholders → MathJax SVG
 		for (const [ph, { formula, displayMode }] of latexMap) {
-			let rendered: string;
-			if (forCopy) {
-				rendered = this.renderLatexForCopy(formula, displayMode);
-			} else {
-				rendered = renderKatexFormula(formula, displayMode);
-			}
+			const rendered = this.renderLatexSvg(formula, displayMode);
 			html = html.split(ph).join(rendered);
 		}
 
@@ -1087,33 +1056,32 @@ ${CALLOUT_FALLBACK_CSS}`;
 		return protectedMd;
 	}
 
-
-		/** Render LaTeX to MathJax SVG (path-based, WeChat compatible) */
-		renderLatexForCopy(formula: string, displayMode: boolean): string {
-			if (!mathjaxSvgModule) {
-				try {
-					const vaultBase = (this.app.vault.adapter as any).getBasePath?.() as string | undefined; // eslint-disable-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-					if (vaultBase) {
-						const fs = require('fs') as typeof import('fs');
-						const modulePath = vaultBase + '/' + this.app.vault.configDir + '/plugins/obsidian-wechat-publish/mathjax-svg.js';
-						if (fs.existsSync(modulePath)) {
-							mathjaxSvgModule = require(modulePath);
-							console.log('[wechat-publish] mathjax-svg.js loaded successfully');
-						}
+	/** Render LaTeX to MathJax SVG (path-based, WeChat compatible) */
+	renderLatexSvg(formula: string, displayMode: boolean): string {
+		if (!mathjaxSvgModule) {
+			try {
+				const vaultBase = (this.app.vault.adapter as any).getBasePath?.() as string | undefined; // eslint-disable-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+				if (vaultBase) {
+					const fs = require('fs') as typeof import('fs');
+					const modulePath = vaultBase + '/' + this.app.vault.configDir + '/plugins/obsidian-wechat-publish/mathjax-svg.js';
+					if (fs.existsSync(modulePath)) {
+						mathjaxSvgModule = require(modulePath);
+						console.log('[wechat-publish] mathjax-svg.js loaded successfully');
 					}
-				} catch (e) {
-					console.warn('[wechat-publish] Failed to load mathjax-svg.js:', e);
 				}
+			} catch (e) {
+				console.warn('[wechat-publish] Failed to load mathjax-svg.js:', e);
 			}
-			if (mathjaxSvgModule) {
-				try {
-					return mathjaxSvgModule.tex2svg(formula, displayMode);
-				} catch (e) {
-					console.warn('[wechat-publish] MathJax SVG render failed:', e);
-				}
-			}
-			return '【公式：' + escapeHtml(formula) + '】';
 		}
+		if (mathjaxSvgModule) {
+			try {
+				return mathjaxSvgModule.tex2svg(formula, displayMode);
+			} catch (e) {
+				console.warn('[wechat-publish] MathJax SVG render failed:', e);
+			}
+		}
+		return '【公式：' + escapeHtml(formula) + '】';
+	}
 
 	// 修复：防止加粗文字和冒号被换行分开
 	preventBreakAfterStrong(html: string): string {
@@ -1256,7 +1224,7 @@ ${CALLOUT_FALLBACK_CSS}`;
 			text: plainText,
 			html: html,
 		});
-		new Notice("✅ 已复制！图片与LaTeX公式已替换为占位符，请手动替换。");
+		new Notice("✅ 已复制！图片已替换为占位符，LaTeX公式已渲染为SVG。");
 	}
 
 	async loadSettings() {

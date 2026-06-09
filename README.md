@@ -2,7 +2,7 @@
 
 [![Obsidian Plugin](https://img.shields.io/badge/Obsidian-Plugin-9654b5)](https://obsidian.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.0.7-blue)](https://github.com/ARCJ137442/obsidian-wechat-publish)
+[![Version](https://img.shields.io/badge/version-1.0.6-blue)](https://github.com/ARCJ137442/obsidian-wechat-publish)
 
 将 Obsidian Markdown 文章一键复制到微信公众号，支持"简约日记风"排版主题。
 
@@ -24,7 +24,7 @@ Callout 内部支持完整的 markdown 语法：**粗体**、*斜体*、`行内�
 - **8 种 Callout 类型** — note、tip、warning、danger、question、example、quote、info，全部带 lucide SVG 图标
 - **Callout 内部 Markdown** — 粗体、斜体、高亮、列表、代码块、表格、链接
 - **自定义 Callout** — 通过 `callout-manager.json` 添加自定义类型和颜色
-- **LaTeX 公式** — 预览版渲染为 SVG，复制版显示占位符
+- **LaTeX 公式** — 预览和复制共用 MathJax SVG（`<path>` 字形，无字体依赖）
 - **暗色模式** — 支持系统偏好和手动切换
 - **Wikilinks 转换** — `[[note]]` 自动转换为微信链接
 - **预览功能** — 浏览器中预览渲染效果
@@ -35,7 +35,7 @@ Callout 内部支持完整的 markdown 语法：**粗体**、*斜体*、`行内�
 
 ### 手动安装
 
-1. 下载 `main.js`、`manifest.json`、`styles.css`
+1. 下载 `main.js`、`manifest.json`、`styles.css`、`mathjax-svg.js`
 2. 复制到 Obsidian vault 的 `.obsidian/plugins/obsidian-wechat-publish/` 目录
 3. 重启 Obsidian，启用插件
 
@@ -97,7 +97,7 @@ npm run build
 | 暗色模式 | ❌ | ✅ |
 | Wikilinks | ❌ | ✅ |
 | 预览功能 | ❌ | ✅ |
-| 测试 | ❌ | 162 个 vitest 测试 |
+| 测试 | ❌ | vitest 测试套件 |
 
 感谢 TinyKing 的原创工作。
 
@@ -126,7 +126,7 @@ src/
   callout-plugin.ts  # Callout 预处理和后处理
   template-fill.ts   # 模板填充
   template-rename.ts # 模板重命名
-tests/               # 162 个测试用例
+tests/               # vitest 测试用例
 ```
 
 ---
@@ -136,6 +136,7 @@ tests/               # 162 个测试用例
 - [TypeScript](https://www.typescriptlang.org/)
 - [markdown-it](https://github.com/markdown-it/markdown-it) — Markdown 解析
 - [juice](https://github.com/Automattic/juice) — CSS 内联
+- [MathJax](https://www.mathjax.org/) — LaTeX SVG 渲染
 - [lucide-static](https://github.com/lucide-icons/lucide) — SVG 图标
 - [vitest](https://vitest.dev/) — 测试框架
 

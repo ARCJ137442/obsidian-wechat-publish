@@ -1,6 +1,6 @@
 # 微信公众号排版发布规范
 
-> 版本: 1.0.7 | 最后更新: 2026-06-03 | 适用: life-series 生活记录
+> 版本: 1.0.6 | 最后更新: 2026-06-09 | 适用: life-series 生活记录
 
 ## 工具链
 
@@ -8,8 +8,8 @@
 Obsidian MD → obsidian-wechat-publish 插件 → 微信格式化 HTML → 粘贴到公众号后台
 ```
 
-- **插件**: `tinyking/obsidian-wechat-publish` v1.0.6 (MIT)
-- **核心技术**: markdown-it 渲染 + juice CSS 内联
+- **插件**: `ARCJ137442/obsidian-wechat-publish` v1.0.6 (forked from `tinyking/obsidian-wechat-publish`, MIT)
+- **核心技术**: markdown-it 渲染 + MathJax SVG 公式 + juice CSS 内联
 - **安装路径**: `.obsidian/plugins/obsidian-wechat-publish/`
 - **触发方式**: `Ctrl/Cmd+P` → `Copy to WeChat`
 

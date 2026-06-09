@@ -2,7 +2,7 @@
 
 Obsidian plugin for Markdown → WeChat Official Account publishing with "简约日记风" minimalist diary theme.
 
-**Version**: v1.0.7 · **Tests**: 162 vitest (TDD-driven) · **License**: MIT
+**Version**: v1.0.6 · **Tests**: vitest suite (TDD-driven) · **License**: MIT
 
 ## Quick Start
 
@@ -47,15 +47,13 @@ node -e "const {tex2svg} = require('./mathjax-svg.js'); console.log(tex2svg('x^2
 Obsidian MD (.md)
   ↓ parseFrontmatter()       — strip YAML
   ↓ convertWikiLinks()       — ![[img]] → ![](img)
-  ↓ mdUnescape()             — backslash escapes → placeholders
   ↓ LaTeX $...$              — placeholders
+  ↓ mdUnescape()             — backslash escapes → placeholders
   ↓ preprocessCallouts()     — > [!TYPE] → <!--CALLOUT_START:type--> + markdown
   ↓ markdown-it (+mark)       — MD → HTML (callout body parsed)
   ↓ postprocessCallouts()    — <!--CALLOUT_START--> → <table> with lucide SVG icon
   ↓ restoreEscapes()          — placeholders → literal chars
-  ↓
-  ├── [Preview] KaTeX HTML (system fonts)
-  └── [Copy]    MathJax SVG (<path> glyphs, no font dependency)
+  ↓ MathJax SVG              — shared Preview/Copy formula renderer
   ↓
   ├── [Preview] → processImagesToBase64 → HTTP server → browser
   └── [Copy]    → replaceImagesWithPlaceholders → strip @media → juice inline → Electron clipboard
@@ -90,8 +88,7 @@ Obsidian MD (.md)
 
 - **Copy path uses Electron native `clipboard.write({text, html})`** — Web Clipboard API caused WeChat editor hangs
 - **Images use text placeholders in Copy mode** — `【图片：path】`（Base64 导致微信编辑器卡死）
-- **LaTeX uses MathJax SVG in Copy mode** — rollup 打包 mathjax-full，输出 `<path>` 元素的自包含 SVG（微信兼容）
-- **LaTeX uses KaTeX in Preview mode** — 预览版在浏览器内渲染，KaTeX HTML 效果更好
+- **LaTeX uses shared MathJax SVG in Preview and Copy** — rollup 打包 mathjax-full，输出 `<path>` 元素的自包含 SVG；`forCopy` 只决定图片和 CSS 管线
 - **Callouts use `<table>` with inline styles** — WeChat strips `<div>` but preserves `<table>`
 - **lucide icons via `import * as lucideStatic`** — runtime dynamic lookup, no hardcoded SVG map
 - **WeChat CSS override: inline `!important`** — only inline style wins against `.js_darkmode__2`
@@ -103,7 +100,7 @@ npx vitest run          # all tests
 npx vitest run tests/   # specific test file
 ```
 
-162 tests covering: callout rendering, callout inline styles (bold/italic/highlight/lists/code), alias resolution, dark mode CSS variables, lucide icon SVG output, CSS debugging, merge logic with real vault JSON.
+The vitest suite covers: callout rendering, callout inline styles (bold/italic/highlight/lists/code), alias resolution, dark mode CSS variables, lucide icon SVG output, LaTeX SVG regressions, CSS debugging, merge logic with real vault JSON.
 
 ## CSS Debugging Workflow
 

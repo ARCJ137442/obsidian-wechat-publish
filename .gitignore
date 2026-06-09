@@ -37,3 +37,6 @@ temp-test/
 
 # Crash dumps
 *.stackdump
+
+# Local code intelligence indexes
+.codegraph/

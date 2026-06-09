@@ -5,7 +5,7 @@
 - **触发**：Obsidian `Ctrl+P` → `Preview in Browser`
 - **输出**：完整 HTML 页面，包含 `<style>` 块，暗色模式 `@media (prefers-color-scheme: dark)`、手机/桌面切换、浅色/深色按钮
 - **图片**：Base64 内嵌（本地 HTTP 服务可渲染）
-- **公式**：KaTeX 本地渲染为 HTML（系统字体，不依赖外部服务）
+- **公式**：MathJax SVG（`<path>` 字形，rollup 打包 mathjax-full，无字体依赖）
 - **颜色**：`getRenderCSS()` 完整 CSS，`--callout-*` CSS 变量定义在 HTML 内联 style 中
 - **目的**：发布前视觉验证——在浏览器里看效果好不好
 
@@ -26,7 +26,7 @@
 | CSS 方式 | `<style>` 块 + `@media` | juice 内联 `style=""` |
 | 暗色模式 | `@media (prefers-color-scheme: dark)` + 手动按钮 | 微信自动管理（CSS 变量抗覆盖） |
 | 图片 | Base64 渲染 | 文本占位符 |
-| 公式 | KaTeX HTML 渲染 | MathJax SVG (`<path>` 字形) |
+| 公式 | MathJax SVG (`<path>` 字形) | MathJax SVG (`<path>` 字形) |
 | WeChat CSS 覆盖 | 不涉及 | 内联 `!important` 对抗 |
 | 剪贴板 | 不涉及 | Electron 原生 API |
 
@@ -39,7 +39,7 @@ processMarkdown(md, path, forCopy?)
   │
   ├── forCopy=false → Preview
   │     ├── 图片：Base64
-  │     ├── 公式：KaTeX HTML（系统字体）
+  │     ├── 公式：MathJax SVG（<path> 字形，无字体依赖）
   │     └── CSS：getRenderCSS()
   │
   └── forCopy=true → Copy
@@ -47,6 +47,8 @@ processMarkdown(md, path, forCopy?)
         ├── 公式：MathJax SVG（<path> 字形，无字体依赖）
         └── CSS：getCopyCSS()（剥离 color，内联 CSS 变量 + !important）
 ```
+
+公式渲染必须保持在共享管线里：`forCopy` 只决定图片处理和 CSS/剪贴板管线，不再决定公式引擎。旧 Preview 路径曾用正则截取 KaTeX 的 `.katex-html` 片段，会在嵌套 `<span>` 中提前停止，导致 `$L^AT_EX$` 只显示 `LA`。
 
 ## WeChat 编辑器 CSS 覆盖的根因与解法
 

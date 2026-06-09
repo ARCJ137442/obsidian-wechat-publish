@@ -115,8 +115,27 @@ describe('MathJax SVG rendering', () => {
 		const svg = tex2svg!('E = mc^2', false);
 		expect(svg).toContain('<svg');
 		expect(svg).toContain('<path');
+		expect(svg).not.toContain('<text');
 		expect(svg).not.toContain('<use');
 		expect(svg).not.toContain('<defs>');
+	});
+
+	skipIfNoModule('renders nested superscript/subscript formula without text truncation fallback', () => {
+		const svg = tex2svg!('L^AT_EX', false);
+		expect(svg).toContain('<svg');
+		expect(svg).toContain('<path');
+		expect(svg).not.toContain('<span class="katex');
+		expect(svg).not.toContain('<text');
+		expect(svg).not.toContain('<use');
+		expect(svg.length).toBeGreaterThan(1000);
+	});
+
+	skipIfNoModule('renders fractions as path-based SVG', () => {
+		const svg = tex2svg!('\\frac{a}{b}', false);
+		expect(svg).toContain('<svg');
+		expect(svg).toContain('<path');
+		expect(svg).not.toContain('<text');
+		expect(svg).not.toContain('<use');
 	});
 
 	skipIfNoModule('renders matrix environment', () => {

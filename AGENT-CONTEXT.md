@@ -8,9 +8,9 @@
 ## 项目概况
 
 - **项目名称**：obsidian-wechat-publish
-- **版本**：v1.0.7
+- **版本**：v1.0.6
 - **许可证**：MIT
-- **测试**：162 个 vitest 测试（TDD 驱动）
+- **测试**：vitest 测试套件（TDD 驱动）
 - **定位**：将 Obsidian Markdown 文章一键复制到微信公众号，支持"简约日记风"主题
 
 ---
@@ -24,7 +24,7 @@
 | Preview in Browser | ✅ 完成 | 浏览器预览，支持暗色模式切换 |
 | Copy to WeChat | ✅ 完成 | 复制到微信公众号编辑器，juice 内联 CSS |
 | Callout 支持 | ✅ 完成 | 8 种内置类型 + 自定义类型，lucide SVG 图标 |
-| LaTeX 渲染 | ✅ 部分完成 | 预览版 KaTeX 渲染，复制版文本占位符 |
+| LaTeX 渲染 | ✅ 完成 | 预览版和复制版共用 MathJax SVG；模块不可用时回退公式占位符 |
 | 暗色模式 | ✅ 完成 | 预览版 @media，复制版内联 !important |
 | Wikilinks 转换 | ✅ 完成 | `[[note]]` → 微信链接或蓝色下划线占位 |
 | 图片处理 | ✅ 完成 | 预览版 Base64，复制版占位符 |
@@ -64,10 +64,10 @@
 | Obsidian `renderMath()` API | ❌ 复制版不可行 | 输出 CHTML（HTML+自定义字体），微信无 MathJax 字体 |
 | **rollup + mathjax-full SVG** | ✅ **当前方案** | rollup `commonjs()` 保留全局状态；`@rollup/plugin-replace` 消除 `eval('require')` |
 
-### 当前方案（2026-06-03 实现）
+### 当前方案（2026-06-09 更新）
 
-- **预览版**：KaTeX 渲染 HTML（系统字体，效果好）
-- **复制版**：MathJax SVG（rollup 打包，输出 `<path>` 自包含 SVG）
+- **预览版**：MathJax SVG（rollup 打包，输出 `<path>` 自包含 SVG）
+- **复制版**：MathJax SVG（同一渲染器；图片改用占位符，CSS 进入 juice 内联）
 
 **构建管线**：
 1. esbuild: `src/main.ts` → `main.js`（排除 `mathjax-full`）
@@ -85,14 +85,14 @@ tex2svg('E = mc^2', false) → SVG 3705 bytes, <path> ✅, <text> ❌
 tex2svg('ax^2 + bx + c = 0', true) → SVG 4938 bytes, <path> ✅
 ```
 
-### 渲染方案（2026-06-04 验证通过，已发布公众号文章）
+### 渲染方案（2026-06-09 修正）
 
-- **预览版**：KaTeX 渲染 HTML（CSS 完整，效果好）
-- **复制版**：MathJax SVG（`<path>` 内联，fontCache:none 确保大矩阵括号缩放正确，2026-06-04 验证通过）
+- **预览版 / 复制版**：共用 MathJax SVG（`<path>` 内联，fontCache:none 确保大矩阵括号缩放正确）
+- **分叉点**：`forCopy` 只决定图片处理（Base64 vs 占位符）和 CSS/剪贴板管线，不决定公式引擎
 
 ### 技术细节
 
-**KaTeX 输出结构**：
+**旧 KaTeX Preview 问题**：
 ```html
 <span class="katex">
   <span class="katex-mathml">MathML（无障碍访问）</span>
@@ -100,12 +100,9 @@ tex2svg('ax^2 + bx + c = 0', true) → SVG 4938 bytes, <path> ✅
 </span>
 ```
 
-**为什么 juice 内联失败**：
-- KaTeX 使用复杂 CSS 定位（`strut`、`vlist`、`pstrut`）
-- 依赖 `position: relative` + `top` 偏移
-- `juice` 无法正确处理这些定位规则
+旧 Preview 实现用懒惰正则截取 `.katex-html` 片段，遇到内部嵌套 `<span>` 会提前停止；`$L^AT_EX$` 会只显示 `LA`。当前方案删除该路径，统一走 MathJax SVG。
 
-**MathJax 失败原因**：
+**旧 MathJax 失败原因（已由 rollup 方案解决）**：
 - esbuild 打包破坏了 MathJax 的全局状态
 - `RegisterHTMLHandler` 需要访问 `mathjax.handlers`
 - 动态/静态导入都无法正确初始化
@@ -139,14 +136,15 @@ tex2svg('ax^2 + bx + c = 0', true) → SVG 4938 bytes, <path> ✅
 Obsidian MD (.md)
   ↓ parseFrontmatter()       — 剥离 YAML
   ↓ convertWikiLinks()       — ![[img]] → ![](img) + [[note]] → 链接/占位
-  ↓ mdUnescape()             — 反斜杠转义 → 占位符
   ↓ LaTeX $...$              — 占位符
+  ↓ mdUnescape()             — 反斜杠转义 → 占位符
   ↓ preprocessCallouts()     — > [!TYPE] → <table> with lucide SVG
   ↓ markdown-it (+mark)      — MD → HTML
   ↓ restoreEscapes()         — 占位符 → 字面字符
+  ↓ MathJax SVG              — 公式统一渲染
   ↓
-  ├── forCopy=true  → MathJax SVG (<path> glyphs) + replaceImages + juice 内联
-  └── forCopy=false → KaTeX HTML + Base64 图片 + <style> 块
+  ├── forCopy=true  → replaceImages + juice 内联
+  └── forCopy=false → Base64 图片 + <style> 块
 ```
 
 ### 关键文件
@@ -155,7 +153,7 @@ Obsidian MD (.md)
 |------|------|
 | `src/main.ts` | 插件主逻辑，所有渲染管线 |
 | `wechat-theme.css` | 独立的微信主题 CSS（207 行） |
-| `tests/*.test.ts` | 162 个 vitest 测试 |
+| `tests/*.test.ts` | vitest 测试套件 |
 | `docs/preview-vs-copy.md` | 预览版 vs 复制版对比文档 |
 
 ### CSS 策略
@@ -242,6 +240,12 @@ npm run deploy -- <vault-root>  # 部署到 Obsidian 仓库
 
 ## 更新日志
 
+### 2026-06-09
+
+- ✅ **Preview LaTeX 截断修复**：删除旧 KaTeX HTML 片段截取路径，Preview/Copy 统一 MathJax SVG
+  - 回归用例：`L^AT_EX`、`\frac{a}{b}` 输出 `<path>` SVG，不含 `<text>` / `<use>`
+  - 新增源码防回归测试，确保 `forCopy` 不再分叉公式引擎
+
 ### 2026-06-03
 
 - ✅ **LaTeX 复制版 SVG 渲染**：rollup + mathjax-full 生成 path-based SVG
@@ -259,8 +263,8 @@ npm run deploy -- <vault-root>  # 部署到 Obsidian 仓库
   - Prettier 格式化所有源文件
 - ✅ **Quick Template Rename 改进**：改用 `fileManager.renameFile`（Obsidian 官方推荐）
 - ✅ **工程止血**：`.gitignore` 添加 `*.stackdump`，`.npmrc` 固定 peer 策略
-- ✅ **LaTeX 渲染改进**：预览版改用 KaTeX（本地渲染，不依赖网络）
-- ⚠️ **LaTeX 复制版调查**：MathJax SVG 在 esbuild 打包环境中无法工作，暂时使用文本占位符
+- ✅ **LaTeX Preview 初版**：曾短暂使用 KaTeX 本地渲染；2026-06-09 已统一到 MathJax SVG
+- ⚠️ **LaTeX 复制版早期调查**：esbuild 直接打包 MathJax 曾失败；已由 rollup 独立模块解决
 
 ### 2026-05-27
 

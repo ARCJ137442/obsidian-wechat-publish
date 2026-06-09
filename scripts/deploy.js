@@ -5,7 +5,6 @@
  * Usage:
  *   npm run deploy -- <vault-path>
  *   npm run deploy -- H:/MyVault
- *   npm run deploy                        # defaults to life-series vault
  *
  * The vault path should be the root of the Obsidian vault (contains .obsidian/).
  */
