@@ -1,8 +1,8 @@
 /**
- * TDD: 3 remaining bugs
- * 1. LaTeX $...$ → SVG not rendered
- * 2. Callout body text not adapted for dark mode
- * 3. <mark> text not adapted for dark mode
+ * Regression probes for earlier rendering bugs:
+ * 1. LaTeX $...$ should render to SVG
+ * 2. Callout body text should adapt for dark mode
+ * 3. <mark> text should adapt for dark mode
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import MarkdownIt from 'markdown-it';
@@ -32,7 +32,7 @@ function restoreEscapes(text: string): string {
 	return text;
 }
 
-// ── LaTeX → SVG (mock for test; real plugin uses codecogs API) ──
+// ── LaTeX → SVG (mock for test; real plugin uses MathJax SVG) ──
 async function renderMarkdown(mdText: string): Promise<string> {
 	// Step 1: mdUnescape (protect backslash escapes)
 	const unescaped = mdUnescape(mdText);
@@ -90,7 +90,7 @@ describe('Bug 1: LaTeX $...$ → SVG', () => {
 	it('inline formula $E=mc^2$ renders as SVG', async () => {
 		const input = '当 $E = mc^2$ 出现在正文中时。';
 		const output = await renderMarkdown(input);
-		// Currently FAILS: LaTeX is NOT rendered as SVG
+		// Regression: LaTeX should be resolved before HTML leaves the pipeline.
 		expect(output).toContain('<svg');
 		expect(output).not.toContain('$E = mc^2$');
 		expect(output).not.toContain('LATEX');
@@ -118,8 +118,7 @@ describe('Bug 2: Callout dark mode', () => {
 		const dmMatch = css.match(/@media\s*\(\s*prefers-color-scheme\s*:\s*dark\s*\)\s*\{([\s\S]*?)\n\s*\}/);
 		const darkCSS = dmMatch ? dmMatch[1] : '';
 		expect(darkCSS).toContain('wechat-callout');
-		// Currently FAILS: wechat-theme.css has NO dark mode section at all
-		// The dark mode rules are only in the plugin's inline HTML template
+		// Regression: the standalone theme must keep its own dark-mode rules.
 	});
 
 	it('wechat-theme.css contains dark mode callout rules', () => {
