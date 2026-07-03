@@ -54,6 +54,25 @@ describe("LaTeX HTML rendering helpers", () => {
 		expect(tex2svg).toHaveBeenCalledWith("a,b \\in \\mathbb Z", false);
 	});
 
+	it("splits Chinese cases formulas even when MathJax returns path-based fallback glyphs", () => {
+		const formula =
+			"\\text{Hom}_{\\mathcal{C}}(a, b) = \\begin{cases} \\{\\bullet_{a,b}\\}, & 当 a \\le b \\\\ 空集, & 当 a \\not\\le b \\end{cases}";
+		const tex2svg = vi.fn((segment: string) => {
+			if (segment.includes("当") || segment.includes("空集")) {
+				return '<svg><path data-c="3F"/></svg>';
+			}
+			return '<svg><path data-c="2219"/></svg>';
+		});
+
+		const html = renderLatexHtml(formula, true, tex2svg);
+
+		expect(html).toContain('class="wechat-latex-cases"');
+		expect(html).toContain("当");
+		expect(html).toContain("空集");
+		expect(html).not.toContain('data-c="3F"');
+		expect(tex2svg).not.toHaveBeenCalledTimes(1);
+	});
+
 	(realTex2svg ? it : it.skip)(
 		"normalizes real MathJax Chinese fallback text for WeChat copy",
 		() => {

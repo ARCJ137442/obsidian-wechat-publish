@@ -31,7 +31,7 @@ export function renderLatexHtml(
 	tex2svg: LatexSvgRenderer,
 ): string {
 	const svg = tex2svg(formula, displayMode).trim();
-	if (!hasSvgText(svg)) {
+	if (!hasSvgText(svg) && !hasChineseText(formula)) {
 		return wrapLatexHtml(svg, displayMode);
 	}
 
@@ -381,6 +381,10 @@ function latexToReadableText(source: string): string {
 
 function isChineseTextChar(char: string): boolean {
 	return CJK_RE.test(char) || CJK_PUNCTUATION_RE.test(char);
+}
+
+function hasChineseText(source: string): boolean {
+	return CJK_RE.test(source) || CJK_PUNCTUATION_RE.test(source);
 }
 
 function hasSvgText(svg: string): boolean {
