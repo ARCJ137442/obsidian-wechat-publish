@@ -3,7 +3,7 @@ export type LatexSvgRenderer = (formula: string, displayMode: boolean) => string
 const DISPLAY_STYLE = "text-align:center;margin:1em 0;line-height:1.4";
 const INLINE_STYLE = "display:inline-block;vertical-align:middle;line-height:1.4";
 const SVG_TEXT_FONT_FAMILY = "inherit";
-const HIGHLIGHT_STYLE = "background-color:rgba(0,0,0,0.15);padding:0 2px";
+const HIGHLIGHT_STYLE = "background-color:rgba(0,0,0,0.15);padding:0 2px;color:inherit";
 
 export function renderLatexHtml(
 	formula: string,
@@ -42,7 +42,7 @@ export function normalizeWechatHighlightTags(html: string): string {
 	return html
 		.replace(
 			/<mark(?:\s+[^>]*)?>/gi,
-			`<span class="highlight" style="${HIGHLIGHT_STYLE}">`,
+			`<span style="${HIGHLIGHT_STYLE}">`,
 		)
 		.replace(/<\/mark>/gi, "</span>");
 }

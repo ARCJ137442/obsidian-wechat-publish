@@ -170,7 +170,8 @@ describe("WeChat highlight compatibility", () => {
 
 		expect(copyHtml).toContain("<blockquote>");
 		expect(copyHtml).toContain("<strong>编排</strong>Agent跟人的有效交互");
-		expect(copyHtml).toContain('class="highlight"');
+		expect(copyHtml).toContain("color:inherit");
+		expect(copyHtml).not.toContain('class="highlight"');
 		expect(copyHtml).not.toContain("<mark");
 		expect(copyHtml).not.toContain("==");
 	});
@@ -182,7 +183,9 @@ describe("WeChat highlight compatibility", () => {
 
 		expect(html).toContain("<span");
 		expect(html).toContain("background-color");
+		expect(html).toContain("color:inherit");
 		expect(html).toContain("<strong>编排</strong>Agent跟人的有效交互");
+		expect(html).not.toContain('class="highlight"');
 		expect(html).not.toContain("<mark");
 		expect(html).not.toContain("==");
 	});
