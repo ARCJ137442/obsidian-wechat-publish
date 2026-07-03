@@ -20,6 +20,12 @@ import preprocessCallouts, {
 	getActiveThemes,
 	CalloutManagerJson,
 } from "./callout-plugin";
+import {
+	normalizeWechatHighlightTags,
+	renderLatexFallback,
+	renderLatexHtml,
+	replaceLatexPlaceholderHtml,
+} from "./latex-rendering";
 import { handleTemplateRename, renameFileSafely } from "./template-rename";
 
 // ==========================================
@@ -395,14 +401,6 @@ function restoreEscapes(text: string): string {
 // MathJax SVG renderer — built separately with rollup
 let mathjaxSvgModule: { tex2svg: (formula: string, display: boolean) => string } | null = null;
 
-function escapeHtml(text: string): string {
-	return text
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;");
-}
-
 /** 从 hsl(...) 或 hsla(...) 字符串中提取 H, S, L 数值 */
 function parseHsl(hslStr: string): { h: number; s: number; l: number } | null {
 	const match = hslStr.match(/hsla?\(\s*(\d+)\s*,\s*(\d+)%\s*,\s*(\d+)%/);
@@ -678,7 +676,7 @@ export default class WechatCopyPlugin extends Plugin {
 		// 7. Resolve LaTeX placeholders → MathJax SVG
 		for (const [ph, { formula, displayMode }] of latexMap) {
 			const rendered = this.renderLatexSvg(formula, displayMode);
-			html = html.split(ph).join(rendered);
+			html = replaceLatexPlaceholderHtml(html, ph, rendered, displayMode);
 		}
 
 		// 8. Image → Base64
@@ -899,10 +897,11 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 			);
 			// Strip @media blocks (WeChat handles dark mode on its own; they can't be juice-inlined)
 			const renderCSS = this.getCopyCSS();
-			const fullHtml = `<div class="wechat-content"><style>${renderCSS}</style>${bodyHtml}</div>`;
+			const copyBodyHtml = normalizeWechatHighlightTags(bodyHtml);
+			const fullHtml = `<div class="wechat-content"><style>${renderCSS}</style>${copyBodyHtml}</div>`;
 			const inlinedHtml = juice(fullHtml);
 			// Use stripped rendered text as plain-text fallback, not raw markdown
-			const plainText = bodyHtml
+			const plainText = copyBodyHtml
 				.replace(/<[^>]+>/g, "")
 				.replace(/\s+/g, " ")
 				.trim();
@@ -1075,12 +1074,12 @@ ${CALLOUT_FALLBACK_CSS}`;
 		}
 		if (mathjaxSvgModule) {
 			try {
-				return mathjaxSvgModule.tex2svg(formula, displayMode);
+				return renderLatexHtml(formula, displayMode, mathjaxSvgModule.tex2svg);
 			} catch (e) {
 				console.warn('[wechat-publish] MathJax SVG render failed:', e);
 			}
 		}
-		return '【公式：' + escapeHtml(formula) + '】';
+		return renderLatexFallback(formula, displayMode);
 	}
 
 	// 修复：防止加粗文字和冒号被换行分开
