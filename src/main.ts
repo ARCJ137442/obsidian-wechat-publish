@@ -1041,7 +1041,7 @@ ${CALLOUT_FALLBACK_CSS}`;
 		return protectedMd;
 	}
 
-	/** Render LaTeX to MathJax SVG (path-based, WeChat compatible) */
+	/** Render LaTeX to one MathJax SVG; CJK text stays as SVG text with inherited font. */
 	renderLatexSvg(formula: string, displayMode: boolean): string {
 		if (!mathjaxSvgModule) {
 			try {

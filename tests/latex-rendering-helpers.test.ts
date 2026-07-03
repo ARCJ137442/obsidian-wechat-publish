@@ -31,46 +31,44 @@ describe("LaTeX HTML rendering helpers", () => {
 		expect(html).not.toContain('class="wechat-latex-display"');
 	});
 
-	it("renders Chinese formula text outside SVG text nodes", () => {
-		const tex2svg = vi.fn((formula: string) => {
-			if (formula.includes("两个对象")) {
-				return "<svg><text>两</text><path /></svg>";
-			}
-			return "<svg><path /></svg>";
-		});
-
-		const html = renderLatexHtml(
-			"两个对象 a,b \\in \\mathbb Z，如果a \\le b，则有态射a \\overset{\\le}{\\to} b",
-			false,
-			tex2svg,
+	it("keeps Chinese formula text inside one normalized SVG", () => {
+		const formula =
+			"两个对象 a,b \\in \\mathbb Z，如果a \\le b，则有态射a \\overset{\\le}{\\to} b";
+		const tex2svg = vi.fn(
+			() =>
+				'<svg><text font-family="serif">两个对象</text><path /></svg>',
 		);
 
-		expect(html).toContain("两个对象");
-		expect(html).toContain("如果");
-		expect(html).toContain("则有态射");
+		const html = renderLatexHtml(formula, false, tex2svg);
+
+		expect(countOccurrences(html, "<svg")).toBe(1);
 		expect(html).toContain("<svg");
+		expect(html).toContain('<text font-family="inherit">两个对象</text>');
 		expect(html).toContain("<path");
-		expect(html).not.toContain("<text");
-		expect(tex2svg).toHaveBeenCalledWith("a,b \\in \\mathbb Z", false);
+		expect(html).not.toContain('class="wechat-latex-text"');
+		expect(tex2svg).toHaveBeenCalledWith(formula, false);
+		expect(tex2svg).toHaveBeenCalledTimes(1);
 	});
 
-	it("splits Chinese cases formulas even when MathJax returns path-based fallback glyphs", () => {
+	it("does not synthesize an HTML table for Chinese cases formulas", () => {
 		const formula =
 			"\\text{Hom}_{\\mathcal{C}}(a, b) = \\begin{cases} \\{\\bullet_{a,b}\\}, & 当 a \\le b \\\\ 空集, & 当 a \\not\\le b \\end{cases}";
-		const tex2svg = vi.fn((segment: string) => {
-			if (segment.includes("当") || segment.includes("空集")) {
-				return '<svg><path data-c="3F"/></svg>';
-			}
-			return '<svg><path data-c="2219"/></svg>';
-		});
+		const tex2svg = vi.fn(
+			() =>
+				'<svg><g data-mml-node="mtable"><text>当</text><text>空集</text></g></svg>',
+		);
 
 		const html = renderLatexHtml(formula, true, tex2svg);
 
-		expect(html).toContain('class="wechat-latex-cases"');
+		expect(countOccurrences(html, "<svg")).toBe(1);
+		expect(html).toContain('data-mml-node="mtable"');
 		expect(html).toContain("当");
 		expect(html).toContain("空集");
-		expect(html).not.toContain('data-c="3F"');
-		expect(tex2svg).not.toHaveBeenCalledTimes(1);
+		expect(html).not.toContain("<table");
+		expect(html).not.toContain("<td");
+		expect(html).not.toContain("begincases");
+		expect(tex2svg).toHaveBeenCalledWith(formula, true);
+		expect(tex2svg).toHaveBeenCalledTimes(1);
 	});
 
 	(realTex2svg ? it : it.skip)(
@@ -81,12 +79,15 @@ describe("LaTeX HTML rendering helpers", () => {
 			const html = renderLatexHtml(formula, false, realTex2svg!);
 
 			expect(rawSvg).toContain("<text");
-			expect(html).toContain("两个对象");
-			expect(html).toContain("如果");
-			expect(html).toContain("则有态射");
+			expect(countOccurrences(html, "<svg")).toBe(1);
+			expect(svgTextContent(html)).toContain("两个对象");
+			expect(svgTextContent(html)).toContain("如果");
+			expect(svgTextContent(html)).toContain("则有态射");
 			expect(html).toContain("<svg");
 			expect(html).toContain("<path");
-			expect(html).not.toContain("<text");
+			expect(html).toContain("<text");
+			expect(html).toContain('font-family="inherit"');
+			expect(html).not.toContain('class="wechat-latex-text"');
 		},
 	);
 
@@ -99,14 +100,42 @@ describe("LaTeX HTML rendering helpers", () => {
 
 			expect(rawSvg).toContain("<text");
 			expect(html).toContain('class="wechat-latex-display"');
-			expect(html).toContain('class="wechat-latex-cases"');
-			expect(html).toContain("当");
-			expect(html).toContain("空集");
+			expect(countOccurrences(html, "<svg")).toBe(1);
+			expect(html).toContain('data-mml-node="mtable"');
+			expect(svgTextContent(html)).toContain("当");
+			expect(svgTextContent(html)).toContain("空集");
 			expect(html).toContain("<svg");
 			expect(html).toContain("<path");
-			expect(html).not.toContain("<text");
+			expect(html).toContain("<text");
+			expect(html).toContain('font-family="inherit"');
+			expect(html).not.toContain("<table");
+			expect(html).not.toContain("<td");
 			expect(html).not.toContain("begincases");
 			expect(html).not.toContain("Hom_mathcalC");
+		},
+	);
+
+	(realTex2svg ? it : it.skip)(
+		"keeps irregular Chinese align formulas as one structured SVG",
+		() => {
+			const formula =
+				"\\begin{align} 123a 这是第一行, \\\\ 第二行第一列 & 第二行第二列 \\\\ 12 & ab \\\\ 0 & 第四行第二列 \\end{align}";
+			const html = renderLatexHtml(formula, true, realTex2svg!);
+			const text = svgTextContent(html);
+
+			expect(html).toContain('class="wechat-latex-display"');
+			expect(countOccurrences(html, "<svg")).toBe(1);
+			expect(html).toContain('data-mml-node="mtable"');
+			expect(text).toContain("这是第一行");
+			expect(text).toContain("第二行第一列");
+			expect(text).toContain("第二行第二列");
+			expect(text).toContain("第四行第二列");
+			expect(html).toContain("<path");
+			expect(html).toContain("<text");
+			expect(html).not.toContain("<table");
+			expect(html).not.toContain("<td");
+			expect(html).not.toContain("beginalign");
+			expect(html).not.toContain("endalign");
 		},
 	);
 
@@ -121,6 +150,16 @@ describe("LaTeX HTML rendering helpers", () => {
 		expect(html).toBe('<section class="wechat-latex-display">svg</section>\n<p>next</p>');
 	});
 });
+
+function countOccurrences(source: string, needle: string): number {
+	return source.split(needle).length - 1;
+}
+
+function svgTextContent(html: string): string {
+	return [...html.matchAll(/<text\b[^>]*>([^<]*)<\/text>/gi)]
+		.map((match) => match[1])
+		.join("");
+}
 
 describe("WeChat highlight compatibility", () => {
 	it("renders nested bold highlight inside blockquotes without raw markers", () => {

@@ -1,10 +1,11 @@
 /**
  * MathJax SVG Renderer
  *
- * Standalone module that converts LaTeX to self-contained SVG with <path> elements.
+ * Standalone module that converts LaTeX to self-contained SVG.
  * Built separately with rollup (not esbuild) to preserve MathJax's global state.
  *
- * Output: SVG HTML string where each glyph is a <path> — no font dependency.
+ * Output: SVG HTML string. MathJax glyphs are inlined as <path>; unknown Unicode
+ * characters such as CJK may remain <text> so the host renderer can use its font.
  * Post-processed to inline all <use> references (WeChat strips xlink:href).
  */
 import { mathjax } from "mathjax-full/js/mathjax";
