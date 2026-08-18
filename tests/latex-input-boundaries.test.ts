@@ -157,6 +157,16 @@ describe("LaTeX 输入边界", () => {
 		expect(result.html).toContain("只贴一边：$ 2 + 4 = 不渲染，因为只贴一边$");
 	});
 
+	it("对数字两可边界不猜测配对，并在歧义消失处继续渲染", () => {
+		const ambiguous = renderWithFormulaProbe("1$2 3$4");
+		expect(ambiguous.diagnostics.formulaCount).toBe(0);
+		expect(ambiguous.html).toContain("1$2 3$4");
+
+		const resolved = renderWithFormulaProbe("0$0 0$0 0$0 0$0 0$");
+		expect(resolved.diagnostics.formulaCount).toBe(1);
+		expect(resolved.html).toContain('data-formula="0 0"');
+	});
+
 	it("保留转义美元符号，不识别为公式", () => {
 		const result = renderWithFormulaProbe("字面量：\\$not a formula\\$。");
 

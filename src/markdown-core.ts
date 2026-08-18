@@ -141,14 +141,28 @@ function findClosingDollar(
 	start: number,
 	delimiterLength: number,
 ): number {
+	let hasAmbiguousInlineDollar = false;
 	for (let index = start; index < text.length; index++) {
 		if (text[index] !== "$" || isEscaped(text, index)) continue;
 		if (delimiterLength === 2) {
 			if (text.slice(index, index + 2) === "$$") return index;
 			continue;
 		}
-		if (text[index - 1] === "$" || text[index + 1] === "$") continue;
-		if (/\s/.test(text[index - 1] ?? "")) continue;
+
+		// A dollar followed by a digit can only be another opening candidate;
+		// treating it as a close would make ambiguous runs such as `1$2 3$4`
+		// consume arbitrary text. Any such candidate invalidates the earlier
+		// pairing, allowing the scanner to retry from a later unambiguous `$`.
+		if (
+			text[index - 1] === "$" ||
+			text[index + 1] === "$" ||
+			/\s/.test(text[index - 1] ?? "") ||
+			/\d/.test(text[index + 1] ?? "")
+		) {
+			hasAmbiguousInlineDollar = true;
+			continue;
+		}
+		if (hasAmbiguousInlineDollar) return -1;
 		return index;
 	}
 	return -1;
@@ -192,17 +206,6 @@ function extractLatexWithPlaceholders(markdown: string): LatexExtraction {
 		}
 
 		const isDisplay = protectedMarkdown.slice(index, index + 2) === "$$";
-		if (
-			!isDisplay &&
-			/\d/.test(protectedMarkdown[index - 1] ?? "")
-		) {
-			// When a numeric "$1$"-style fragment was rejected as prose, its
-			// second dollar must not become a fresh formula opener and consume
-			// text until a later dollar sign.
-			result += "$";
-			index++;
-			continue;
-		}
 		if (!isDisplay && !isLikelyInlineFormulaStart(protectedMarkdown, index)) {
 			result += "$";
 			index++;
