@@ -100,7 +100,7 @@ describe("LaTeX 输入边界", () => {
 		expect(result.html).toContain('data-formula="z"');
 	});
 
-	it("不把成对的货币金额识别为公式", () => {
+	it("不把未配对的货币金额识别为公式", () => {
 		const result = renderWithFormulaProbe("预算为 $100，实际支出为 $200。");
 
 		expect(result.diagnostics.formulaCount).toBe(0);
@@ -108,14 +108,35 @@ describe("LaTeX 输入边界", () => {
 		expect(result.html).toContain("$200");
 	});
 
-	it("不让被拒绝的数字片段跨越后续美元符号形成巨型公式", () => {
-		const result = renderWithFormulaProbe(
-			"从$1$到$4$最多有$1 \\to 2 \\to 3 \\to 4$。",
-		);
+	it("不让未配对的数字金额跨越后续美元符号形成公式", () => {
+		const result = renderWithFormulaProbe("从$100到$200，正文公式是 $x$。");
 
 		expect(result.diagnostics.formulaCount).toBe(1);
-		expect(result.html).toContain('data-formula="1 \\to 2 \\to 3 \\to 4"');
-		expect(result.html).toContain("从$1$到$4$最多有");
+		expect(result.html).toContain('data-formula="x"');
+		expect(result.html).toContain("从$100到$200");
+	});
+
+	it("渲染成对的纯数字行内公式和纯数字行间公式", () => {
+		const result = renderWithFormulaProbe(
+			"行内：$1$、$2$、$234$、$88557731$、$a$；行间：$$123456789$$",
+		);
+
+		expect(result.diagnostics.formulaCount).toBe(6);
+		expect(result.html).toContain('data-formula="1"');
+		expect(result.html).toContain('data-formula="2"');
+		expect(result.html).toContain('data-formula="234"');
+		expect(result.html).toContain('data-formula="88557731"');
+		expect(result.html).toContain('data-formula="a"');
+		expect(result.html).toContain('data-formula="123456789"');
+	});
+
+	it("把成对的纯数字美元定界符当作公式，同时保留未闭合货币金额", () => {
+		const result = renderWithFormulaProbe("成对数字：$100$；未闭合价格：$100");
+
+		expect(result.diagnostics.formulaCount).toBe(1);
+		expect(result.html).toContain('data-formula="100"');
+		expect(result.html).toContain("未闭合价格：$100");
+		expect(result.html).not.toContain("成对数字：$100$");
 	});
 
 	it("保留转义美元符号，不识别为公式", () => {

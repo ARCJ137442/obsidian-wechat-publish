@@ -114,7 +114,7 @@
 - [x] 增加代码块中的 `$not a formula$`、转义美元符号和复杂公式回归测试。
 - [x] 保持 MathJax SVG 为唯一正常公式输出；失败时返回诊断信息，而不是静默伪装成成功。
 
-实施结果：新增 `tests/latex-input-boundaries.test.ts`，以真实 `renderMarkdownCore()` 覆盖 fenced/inline code、HTML、货币金额、转义美元符号、数字美元片段、跨行 display 和连续 inline 公式；实现采用保护片段 + 扫描提取，未扩大到 Markdown 解析器重写。另修复 Wikilink 适配层恢复代码块时对 `$'`、`$$` 等替换标记的误解释，并让含行内三反引号的 fenced code 在 LaTeX 提取前保持完整。
+实施结果：新增 `tests/latex-input-boundaries.test.ts`，以真实 `renderMarkdownCore()` 覆盖 fenced/inline code、HTML、货币金额、转义美元符号、数字美元片段、跨行 display 和连续 inline 公式；实现采用保护片段 + 扫描提取，未扩大到 Markdown 解析器重写。成对的纯数字 `$...$` 现在按公式处理，未闭合的 `$100` 等货币文本保持原样。另修复 Wikilink 适配层恢复代码块时对 `$'`、`$$` 等替换标记的误解释，并让含行内三反引号的 fenced code 在 LaTeX 提取前保持完整。
 
 注意：这一项不做大范围正则替换，必须先建立 fixture，再逐步改动并比较 HTML 输出。
 

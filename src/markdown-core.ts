@@ -156,19 +156,23 @@ function findClosingDollar(
 
 function isLikelyInlineFormulaStart(text: string, index: number): boolean {
 	const next = text[index + 1] ?? "";
-	// A digit immediately after $ is overwhelmingly a currency amount in
-	// prose. Requiring a non-space, non-digit start also avoids pairing two
-	// amounts such as "$100 ... $200" as one formula.
+	// A dollar followed by whitespace cannot open an inline formula.
 	if (next === "" || /\s/.test(next)) return false;
 	if (!/\d/.test(next)) return true;
 
-	// Numeric formulas remain valid when their body contains an unmistakable
-	// mathematical cue, such as a LaTeX command, operator, exponent, or
-	// variable. Plain "$100 ... $200" therefore stays ordinary prose.
+	// A complete numeric body is an explicit numeric formula, including
+	// `$1$`, `$234$`, and `$100$`. An unpaired `$100` remains currency text.
 	const closingIndex = findClosingDollar(text, index + 1, 1);
 	if (closingIndex < 0) return false;
-	const body = text.slice(index + 1, closingIndex);
-	return /\\[A-Za-z]|[=^_{}+\-*/]|[A-Za-z]/.test(body);
+	const body = text.slice(index + 1, closingIndex).trim();
+	if (/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(body)) return true;
+
+	// Do not let a numeric currency amount pair with a later formula marker,
+	// e.g. `$100到$200，正文 $x$`. A nested dollar means this is prose, not
+	// one numeric formula. Other math cues preserve forms such as `$6 \log_2
+	// 10$` and `$1 \to 2$`.
+	if (body.includes("$")) return false;
+	return /\\[A-Za-z]|[=^_{}+\-*/]/.test(body);
 }
 
 function extractLatexWithPlaceholders(markdown: string): LatexExtraction {
