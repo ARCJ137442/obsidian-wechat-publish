@@ -1,6 +1,6 @@
 # 微信公众号发布插件迭代路线图
 
-> 状态：阶段 7 命令入口完成，CSS/CLI 作为后续独立计划
+> 状态：阶段 6 CSS 基础与 CLI 评估完成，多主题/正式 CLI 待后续
 > 建立日期：2026-08-18
 > 当前基线：v1.2.0
 
@@ -170,11 +170,13 @@
 
 当前 CSS 只要能稳定工作就不主动重构；本阶段单独排期。
 
-- [ ] 明确一个默认内置主题 CSS 来源。
-- [ ] 将默认主题与用户自定义 CSS 分层合并，而不是用字符串是否包含 `.wechat-callout` 判断主题完整性。
-- [ ] 只移除 Copy 模式真正不兼容的 `prefers-color-scheme` 规则，保留其他 media 规则。
-- [ ] 增加 CSS 组合结果的快照/contract 测试。
+- [x] 明确一个默认内置主题 CSS 来源。
+- [x] 将默认主题与用户自定义 CSS 分层合并，而不是用字符串是否包含 `.wechat-callout` 判断主题完整性。
+- [x] 只移除 Copy 模式真正不兼容的 `prefers-color-scheme` 规则，保留其他 media 规则。
+- [x] 增加 CSS 组合结果的快照/contract 测试。
 - [ ] 后续再考虑多个内置主题或主题切换。
+
+实施结果：`DEFAULT_CSS` 作为插件内置主题基础层，`src/theme-css.ts` 负责拼接用户覆盖层；`src/copy-css.ts` 只移除 `prefers-color-scheme` media block；`tests/theme-css.test.ts` 和 `tests/copy-css.test.ts` 覆盖组合与 media contract。此次只修复可复现的 CSS 截断问题，不改变默认排版细节。
 
 触发条件：出现可复现的 CSS 丢失、用户自定义 CSS 被截断、或 Preview/Copy 输出不一致时，提前启动本阶段。
 
@@ -183,7 +185,9 @@
 - [x] 增加“复制当前笔记”命令，支持阅读模式和文件菜单入口。
 - [x] 增加“复制选中内容”命令。
 - [x] 增加预览当前笔记和右键菜单入口。
-- [ ] 在纯渲染核心稳定后，评估独立 CLI；CLI 必须明确图片、Wikilink 和 Callout Manager 的能力边界。
+- [x] 在纯渲染核心稳定后，评估独立 CLI；CLI 必须明确图片、Wikilink 和 Callout Manager 的能力边界。
+
+评估记录：见 `docs/wechat-publish-cli-assessment.md`。结论是暂不把 CLI 纳入 1.3.0，未来复用纯渲染核心并通过显式参数注入 Vault 外部能力。
 
 实施结果：在 `src/main.ts` 增加当前笔记、选区和文件菜单命令；当前笔记命令读取 TFile 内容，因此不依赖编辑器是否处于 Live Preview/Reading view。CLI 继续作为独立的后续评估，不阻塞 Obsidian 插件使用。
 
@@ -214,8 +218,8 @@ ICE = 影响 × 信心 × 易实施度 ÷ 10，仅用于排序，不代替实际
 
 ## 每阶段通用验收
 
-- [ ] 不改变未涉及功能的既有 HTML 输出。
-- [ ] 测试覆盖真实生产路径，而不是复制实现。
-- [ ] `npm run build`、`npm run lint`、`npm test` 全部通过。
-- [ ] 若涉及用户可见输出，更新对应 fixture 和文档。
-- [ ] 确认没有引入微信 API、账号凭证或 Base64 Copy 图片。
+- [x] 不改变未涉及功能的既有 HTML 输出。
+- [x] 测试覆盖真实生产路径，而不是复制实现。
+- [x] `npm run build`、`npm run lint`、`npm test` 全部通过。
+- [x] 若涉及用户可见输出，更新对应 fixture 和文档。
+- [x] 确认没有引入微信 API、账号凭证或 Base64 Copy 图片。

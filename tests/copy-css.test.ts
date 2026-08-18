@@ -35,4 +35,37 @@ strong { font-weight: 600; }
 		expect(inlined).not.toContain("#4a7566");
 		expect(inlined).not.toContain("color: inherit");
 	});
+
+	it("removes only color-scheme media and preserves other media blocks", () => {
+		const copyCSS = buildCopyCSS(`
+@media (prefers-color-scheme: dark) {
+  .wechat-content { color: white; }
+}
+@media (max-width: 600px) {
+  .wechat-content { padding: 8px; }
+}
+@media print {
+  .wechat-content { color: black; }
+}
+`);
+
+		expect(copyCSS).not.toContain("prefers-color-scheme");
+		expect(copyCSS).toContain("@media (max-width: 600px)");
+		expect(copyCSS).toContain("@media print");
+		expect(copyCSS).toContain("padding: 8px");
+	});
+
+	it("preserves nested braces inside a non-color-scheme media block", () => {
+		const copyCSS = buildCopyCSS(`
+@media (max-width: 600px) {
+  .wechat-content { color: black; }
+  @supports (display: grid) {
+    .wechat-content { display: grid; }
+  }
+}
+`);
+
+		expect(copyCSS).toContain("@supports (display: grid)");
+		expect(copyCSS).toContain("display: grid");
+	});
 });

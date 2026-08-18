@@ -48,6 +48,7 @@ import {
 	clearPreviewTimeout,
 	renewPreviewTimeout,
 } from "./preview-timeout";
+import { buildThemeCSS } from "./theme-css";
 
 // ==========================================
 // 默认样式：仿微信公众号爆款文章风格
@@ -293,90 +294,6 @@ const DEFAULT_CSS = `
     border-top: 1px solid #eee;
     margin: 32px 0;
   }
-`;
-
-const CALLOUT_FALLBACK_CSS = `
-	.wechat-callout {
-	    margin: 20px 0;
-	    border-left: 4px solid #773098;
-	    border-radius: 8px;
-	    overflow: hidden;
-	    background: #faf7fd;
-	}
-	.wechat-callout-title {
-	    padding: 0 !important;
-	    font-size: 14px;
-	    font-weight: 600;
-	    line-height: 1.6;
-	    /* color/background 由内联 CSS 变量设置，勿在此处覆盖 */
-	}
-	.wechat-callout-body {
-	    padding: 12px 14px;
-	}
-	.wechat-callout-body p {
-	    margin: 0 0 12px 0;
-	    color: #333;
-	    font-weight: 400;
-	}
-	.wechat-callout-body p:last-child {
-	    margin-bottom: 0;
-	}
-	.wechat-callout-note {
-	    border-left-color: #773098;
-	    background: #faf7fd;
-	}
-	.wechat-callout-note .wechat-callout-title {
-	    color: #5a3382;
-	}
-	.wechat-callout-info {
-	    border-left-color: #2eaadc;
-	    background: #f3fbff;
-	}
-	.wechat-callout-info .wechat-callout-title {
-	    color: #1f7599;
-	}
-	.wechat-callout-tip {
-	    border-left-color: #2f9e44;
-	    background: #f3fcf5;
-	}
-	.wechat-callout-tip .wechat-callout-title {
-	    color: #1f6d2f;
-	}
-	.wechat-callout-question {
-	    border-left-color: #b7791f;
-	    background: #fffaf2;
-	}
-	.wechat-callout-question .wechat-callout-title {
-	    color: #8a5b17;
-	}
-	.wechat-callout-warning {
-	    border-left-color: #e8913c;
-	    background: #fff8f0;
-	}
-	.wechat-callout-warning .wechat-callout-title {
-	    color: #b96f22;
-	}
-	.wechat-callout-danger {
-	    border-left-color: #e03131;
-	    background: #fff5f5;
-	}
-	.wechat-callout-danger .wechat-callout-title {
-	    color: #b42323;
-	}
-	.wechat-callout-example {
-	    border-left-color: #0ca678;
-	    background: #f2fffb;
-	}
-	.wechat-callout-example .wechat-callout-title {
-	    color: #087f5b;
-	}
-	.wechat-callout-quote {
-	    border-left-color: #868e96;
-	    background: #f8f9fa;
-	}
-	.wechat-callout-quote .wechat-callout-title {
-	    color: #495057;
-	}
 `;
 
 // MathJax SVG renderer — built separately with rollup
@@ -977,10 +894,7 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 	}
 
 	getRenderCSS(): string {
-		const customCSS = this.settings.customCSS ?? "";
-		if (customCSS.includes(".wechat-callout")) return customCSS;
-		return `${customCSS}
-${CALLOUT_FALLBACK_CSS}`;
+		return buildThemeCSS(DEFAULT_CSS, this.settings.customCSS ?? "");
 	}
 
 	/**

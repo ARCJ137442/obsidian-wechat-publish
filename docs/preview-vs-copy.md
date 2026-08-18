@@ -23,7 +23,7 @@
 
 | | 预览版 | 复制版 |
 |------|--------|--------|
-| CSS 方式 | `<style>` 块 + `@media` | juice 内联 `style=""` |
+| CSS 方式 | `<style>` 块 + `@media` | juice 内联 `style=""`，仅移除 `prefers-color-scheme` media |
 | 暗色模式 | `@media (prefers-color-scheme: dark)` + 手动按钮 | 微信自动管理（CSS 变量抗覆盖） |
 | 图片 | Base64 渲染 | 文本占位符 |
 | 公式 | MathJax SVG (`<path>` 字形) | MathJax SVG (`<path>` 字形) |
