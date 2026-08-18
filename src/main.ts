@@ -27,7 +27,6 @@ import {
 	replaceLatexPlaceholderHtml,
 } from "./latex-rendering";
 import { buildCopyCSS } from "./copy-css";
-import { handleTemplateRename, renameFileSafely } from "./template-rename";
 
 // ==========================================
 // 默认样式：仿微信公众号爆款文章风格
@@ -456,12 +455,10 @@ function generateDarkModeCustomCalloutCSS(): string {
 
 interface WechatPluginSettings {
 	customCSS: string;
-	enableTemplateRename: boolean;
 }
 
 const DEFAULT_SETTINGS: WechatPluginSettings = {
 	customCSS: DEFAULT_CSS,
-	enableTemplateRename: false,
 };
 
 export default class WechatCopyPlugin extends Plugin {
@@ -490,25 +487,6 @@ export default class WechatCopyPlugin extends Plugin {
 				const markdown = editor.getValue();
 				const currentPath = view.file ? view.file.path : "";
 				await this.processAndCopy(markdown, currentPath);
-			},
-		});
-
-		// Command 3: Quick Template Rename
-		this.addCommand({
-			id: "rename-by-template",
-			name: "Quick Template Rename",
-			editorCallback: async (_editor: Editor, view: MarkdownView) => {
-				if (!this.settings.enableTemplateRename) {
-					new Notice("⚠️ 模板重命名功能未启用，请在设置中开启");
-					return;
-				}
-				await handleTemplateRename(
-					view.file ?? this.app.workspace.getActiveFile(),
-					this.parseFrontmatter.bind(this),
-					(file) => this.app.vault.read(file),
-					(file, newPath) =>
-						renameFileSafely(this.app, file, newPath),
-				);
 			},
 		});
 
@@ -1238,20 +1216,6 @@ class WechatSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl).setName("WeChat formatting").setHeading();
-
-		new Setting(containerEl)
-			.setName("Enable Quick Template Rename")
-			.setDesc(
-				"When enabled, a command 'Quick Template Rename' becomes available. It reads title-full-template from frontmatter, fills it with frontmatter values, and renames the current file.",
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.enableTemplateRename)
-					.onChange(async (value) => {
-						this.plugin.settings.enableTemplateRename = value;
-						await this.plugin.saveSettings();
-					}),
-			);
 
 		new Setting(containerEl)
 			.setName("Reset style")

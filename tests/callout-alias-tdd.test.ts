@@ -8,13 +8,7 @@
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { buildMergedCalloutData, getActiveAliases, getActiveThemes, setupCalloutData } from '../src/callout-plugin';
-import type { CalloutManagerJson } from '../src/callout-plugin';
-
-// 读取真实 vault 的 callout-manager JSON
-import * as fs from 'fs';
-const VAULT_CM = JSON.parse(
-    fs.readFileSync('H:/A137442/Document/life-series/.obsidian/plugins/callout-manager/data.json', 'utf-8')
-) as CalloutManagerJson;
+import { CALLOUT_MANAGER_FIXTURE as VAULT_CM } from './fixtures/callout-manager';
 
 describe('内置类型 alias（默认状态）', () => {
     beforeAll(() => {
@@ -56,11 +50,11 @@ describe('buildMergedCalloutData 后：custom 类型动态注册', () => {
         }
     });
 
-    it('btw 是 custom 类型，alias → 自己，theme 有 icon', () => {
-        expect(getActiveAliases()['btw']).toBe('btw');
-        expect(getActiveThemes()['btw']).toBeDefined();
-        expect(getActiveThemes()['btw'].icon).toBe('lucide-git-branch');
-        expect(getActiveThemes()['btw'].border).toMatch(/hsl/); // HSL 派生颜色
+    it('branch 是 custom 类型，alias → 自己，theme 有 icon', () => {
+        expect(getActiveAliases()['branch']).toBe('branch');
+        expect(getActiveThemes()['branch']).toBeDefined();
+        expect(getActiveThemes()['branch'].icon).toBe('lucide-git-branch');
+        expect(getActiveThemes()['branch'].border).toMatch(/hsl/); // HSL 派生颜色
     });
 
     it('todo（custom）是独立类型，非 info', () => {

@@ -14,13 +14,7 @@ import preprocessCallouts, {
     buildMergedCalloutData,
     setupCalloutData,
 } from '../src/callout-plugin';
-import type { CalloutManagerJson } from '../src/callout-plugin';
-import * as fs from 'fs';
-
-// ── 加载真实 vault JSON ──
-const VAULT_CM = JSON.parse(
-    fs.readFileSync('H:/A137442/Document/life-series/.obsidian/plugins/callout-manager/data.json', 'utf-8')
-) as CalloutManagerJson;
+import { CALLOUT_MANAGER_FIXTURE as VAULT_CM } from './fixtures/callout-manager';
 
 // ── 初始化：把合并后的数据注入插件状态 ──
 const { themes, aliases } = buildMergedCalloutData(VAULT_CM);

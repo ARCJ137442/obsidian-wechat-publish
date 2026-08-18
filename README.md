@@ -8,6 +8,8 @@
 
 > Forked from [tinyking/obsidian-wechat-publish](https://github.com/tinyking/obsidian-wechat-publish)，在此基础上进行了功能增强和样式重写。
 
+本仓库只包含通用的 Markdown → 微信公众号 HTML 渲染、预览和复制功能。个人写作工作流（例如按 frontmatter 模板重命名文件）已移至独立的私有插件，不属于本项目。
+
 ---
 
 ## 效果预览
@@ -57,6 +59,10 @@ npm run build
 1. 在 Obsidian 中打开文章
 2. `Ctrl+P` → 输入 `Copy to WeChat`
 3. 粘贴到微信公众号编辑器
+
+### 从旧版本升级
+
+如果曾使用旧版本中的 `Quick Template Rename`，请将该功能迁移到自己的工作流插件；它已从本项目移除，以保持公开插件与个人写作规则解耦。
 
 ### Callout 语法
 
@@ -124,8 +130,6 @@ npx vitest run       # 运行所有测试
 src/
   main.ts            # 插件主入口
   callout-plugin.ts  # Callout 预处理和后处理
-  template-fill.ts   # 模板填充
-  template-rename.ts # 模板重命名
 tests/               # vitest 测试用例
 ```
 

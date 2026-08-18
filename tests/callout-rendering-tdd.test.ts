@@ -8,13 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import preprocessCallouts, { postprocessCallouts, getIconSvg, getActiveThemes, buildMergedCalloutData, setupCalloutData } from '../src/callout-plugin';
-import type { CalloutManagerJson } from '../src/callout-plugin';
-import * as fs from 'fs';
-
-// ── 加载真实 vault JSON ──
-const VAULT_CM = JSON.parse(
-    fs.readFileSync('H:/A137442/Document/life-series/.obsidian/plugins/callout-manager/data.json', 'utf-8')
-) as CalloutManagerJson;
+import { CALLOUT_MANAGER_FIXTURE as VAULT_CM } from './fixtures/callout-manager';
 
 // ── 初始化：把合并后的数据注入插件状态 ──
 const { themes, aliases } = buildMergedCalloutData(VAULT_CM);
@@ -61,8 +55,8 @@ describe('BUG-1: 标题 span 周围无 background 框', () => {
         expect(titleSpan).toMatch(/color:\s*var\(--callout-title-color\)/);
     });
 
-    it('自定义 btw callout: 标题 span 无 background 内联样式（除 transparent 外）', () => {
-        const md = `> [!btw] 岔题\n> 这是一条岔题内容。`;
+    it('自定义 branch callout: 标题 span 无 background 内联样式（除 transparent 外）', () => {
+        const md = `> [!branch] 分支\n> 这是一条分支内容。`;
         const html = renderCallout(md);
         const titleSpanMatch = html.match(/<span[^>]*class="wechat-callout-title"[^>]*>/);
         expect(titleSpanMatch).not.toBeNull();
@@ -90,8 +84,8 @@ describe('BUG-2: 图标颜色', () => {
         expect(html).toContain('lucide-flame');
     });
 
-    it('自定义 btw callout（有 icon）: 图标 span 使用 CSS 变量 color:var(--callout-title-color)', () => {
-        const md = `> [!btw] 岔题\n> 内容`;
+    it('自定义 branch callout（有 icon）: 图标 span 使用 CSS 变量 color:var(--callout-title-color)', () => {
+        const md = `> [!branch] 分支\n> 内容`;
         const html = renderCallout(md);
         expect(html).toContain('wechat-callout-icon');
         expect(html).toMatch(/class="wechat-callout-icon"[^>]*style="[^"]*color:\s*var\(--callout-title-color\)/);
@@ -127,8 +121,8 @@ describe('BUG-3: CSS 变量完整性', () => {
         expect(html).toMatch(/--callout-title-bg/);
     });
 
-    it('自定义 btw callout 也有 CSS 变量', () => {
-        const md = `> [!btw] 岔题\n> 内容`;
+    it('自定义 branch callout 也有 CSS 变量', () => {
+        const md = `> [!branch] 分支\n> 内容`;
         const html = renderCallout(md);
         expect(html).toMatch(/--callout-border/);
         expect(html).toMatch(/--callout-bg/);
@@ -196,10 +190,10 @@ describe('预览 HTML 生成', () => {
         expect(processed).toMatch(/background:\s*var\(--callout-bg\)/);
     });
 
-    it('生成带图标的 callout HTML（btw → btw 自定义类型）', () => {
-        const md = `> [!btw] 岔题\n> 内容`;
+    it('生成带图标的 callout HTML（branch → branch 自定义类型）', () => {
+        const md = `> [!branch] 分支\n> 内容`;
         const processed = renderCallout(md);
-        expect(processed).toContain('wechat-callout-btw');
+        expect(processed).toContain('wechat-callout-branch');
         expect(processed).toContain('lucide-git-branch');
     });
 

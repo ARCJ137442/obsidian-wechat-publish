@@ -1,26 +1,15 @@
 /**
- * 集成测试：buildMergedCalloutData 与真实 callout-manager JSON 的联动
+ * 集成测试：buildMergedCalloutData 与 Callout Manager JSON 的联动
  *
  * 测试策略：
- * 1. 读取真实 vault 的 .obsidian/plugins/callout-manager/data.json
+ * 1. 加载可复用的 Callout Manager fixture
  * 2. 验证合并后的 themes 和 aliases 符合预期
  * 3. 验证内置 callout 未被意外覆盖
  */
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "fs";
-import { resolve } from "path";
 import { buildMergedCalloutData, themeFromCalloutColor } from "../src/callout-plugin";
 import type { CalloutManagerJson } from "../src/callout-plugin";
-
-// ── 读取真实 vault 的 callout-manager 配置 ──
-
-const VAULT_PATH = "H:/A137442/Document/life-series";
-const CM_JSON_PATH = resolve(VAULT_PATH, ".obsidian/plugins/callout-manager/data.json");
-
-function loadRealCalloutManagerJson(): CalloutManagerJson {
-    const raw = readFileSync(CM_JSON_PATH, "utf-8");
-    return JSON.parse(raw) as CalloutManagerJson;
-}
+import { CALLOUT_MANAGER_FIXTURE } from "./fixtures/callout-manager";
 
 // ── 辅助：解析 hsl() 字符串 ──
 
@@ -31,8 +20,8 @@ function parseHsl(hsl: string): { h: number; s: number; l: number } {
     return { h: parseInt(match[1]), s: parseInt(match[2]), l: parseInt(match[3]) };
 }
 
-describe("buildMergedCalloutData（真实 JSON）", () => {
-    const realJson = loadRealCalloutManagerJson();
+describe("buildMergedCalloutData（fixture JSON）", () => {
+    const realJson: CalloutManagerJson = CALLOUT_MANAGER_FIXTURE;
     const { themes, aliases } = buildMergedCalloutData(realJson);
 
     // ── 自定义类型（custom 列表）测试 ──
@@ -71,8 +60,8 @@ describe("buildMergedCalloutData（真实 JSON）", () => {
             expect(h).toBeCloseTo(179, 0); // H≈179
         });
 
-        it("btw（255, 193, 7）→ hsl 派生正确", () => {
-            const t = themes["btw"];
+        it("branch（255, 193, 7）→ hsl 派生正确", () => {
+            const t = themes["branch"];
             expect(t).toBeDefined();
             const { h } = parseHsl(t.border);
             expect(h).toBeCloseTo(45, 0); // H≈45

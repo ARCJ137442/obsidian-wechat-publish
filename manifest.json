@@ -1,7 +1,7 @@
 {
 	"id": "obsidian-wechat-publish",
 	"name": "WeChat Public Account Publisher",
-	"version": "1.0.6",
+	"version": "1.1.0",
 	"minAppVersion": "0.15.0",
 	"description": "One-click copy markdown to WeChat Official Account with formatting (一键转换 Markdown 为微信公众号格式).",
 	"author": "TinyKing",
