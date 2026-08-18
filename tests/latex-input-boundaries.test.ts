@@ -167,6 +167,51 @@ describe("LaTeX 输入边界", () => {
 		expect(resolved.html).toContain('data-formula="0 0"');
 	});
 
+	it("允许 display 公式跨行，但不把换行改写成行内公式", () => {
+		const result = renderWithFormulaProbe("$$a\n- b\n= c\n$$");
+
+		expect(result.diagnostics.formulaCount).toBe(1);
+		expect(result.html).toContain('data-display="true"');
+		expect(result.html).toContain('data-formula="a\n- b\n= c"');
+	});
+
+	it("行内单美元公式不跨行配对", () => {
+		const result = renderWithFormulaProbe(
+			"这行的$100\n不会跟下一行的$200",
+		);
+
+		expect(result.diagnostics.formulaCount).toBe(0);
+		expect(result.html).toContain("这行的$100");
+		expect(result.html).toContain("不会跟下一行的$200");
+		expect(result.html).not.toContain("100\n不会跟下一行的");
+	});
+
+	it("遵循同一行中数字与美元符号的四种边界特例", () => {
+		const noFormulaFromOpeningCurrency = renderWithFormulaProbe(
+			"这行的$100不会跟后边的$200",
+		);
+		const formulaFromClosingCurrency = renderWithFormulaProbe(
+			"这行的100$会跟后边的200$",
+		);
+		const formulaFromOpeningCurrency = renderWithFormulaProbe(
+			"这行的$100则会跟后边的200$",
+		);
+		const noFormulaFromClosingCurrency = renderWithFormulaProbe(
+			"这行的100$又不会跟后边的$200",
+		);
+
+		expect(noFormulaFromOpeningCurrency.diagnostics.formulaCount).toBe(0);
+		expect(formulaFromClosingCurrency.diagnostics.formulaCount).toBe(1);
+		expect(formulaFromClosingCurrency.html).toContain(
+			'data-formula="会跟后边的200"',
+		);
+		expect(formulaFromOpeningCurrency.diagnostics.formulaCount).toBe(1);
+		expect(formulaFromOpeningCurrency.html).toContain(
+			'data-formula="100则会跟后边的200"',
+		);
+		expect(noFormulaFromClosingCurrency.diagnostics.formulaCount).toBe(0);
+	});
+
 	it("保留转义美元符号，不识别为公式", () => {
 		const result = renderWithFormulaProbe("字面量：\\$not a formula\\$。");
 

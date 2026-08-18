@@ -143,6 +143,12 @@ function findClosingDollar(
 ): number {
 	let hasAmbiguousInlineDollar = false;
 	for (let index = start; index < text.length; index++) {
+		if (
+			delimiterLength === 1 &&
+			(text[index] === "\r" || text[index] === "\n")
+		) {
+			return -1;
+		}
 		if (text[index] !== "$" || isEscaped(text, index)) continue;
 		if (delimiterLength === 2) {
 			if (text.slice(index, index + 2) === "$$") return index;
