@@ -14,6 +14,7 @@ import juice from "juice";
 import {
 	renderMarkdownCore,
 	type LatexRenderResult,
+	type MarkdownCoreDiagnostics,
 	preventBreakAfterStrong as preventBreakAfterStrongCore,
 } from "./markdown-core";
 import { convertWikiLinks as convertWikiLinksCore } from "./wiki-links";
@@ -38,6 +39,11 @@ import {
 	renderLatexHtml,
 } from "./latex-rendering";
 import { buildCopyCSS } from "./copy-css";
+import {
+	buildCopyNotice,
+	countHtmlParagraphs,
+	countImagePlaceholders,
+} from "./copy-notice";
 
 // ==========================================
 // 默认样式：仿微信公众号爆款文章风格
@@ -432,6 +438,11 @@ const DEFAULT_SETTINGS: WechatPluginSettings = {
 	customCSS: DEFAULT_CSS,
 };
 
+type ProcessedMarkdown = {
+	html: string;
+	diagnostics: MarkdownCoreDiagnostics;
+};
+
 export default class WechatCopyPlugin extends Plugin {
 	settings: WechatPluginSettings;
 
@@ -572,7 +583,7 @@ export default class WechatCopyPlugin extends Plugin {
 		markdown: string,
 		currentPath: string,
 		forCopy = false,
-	): Promise<string> {
+	): Promise<ProcessedMarkdown> {
 		const coreResult = renderMarkdownCore(markdown, {
 			currentPath,
 			resolveWikiLink: this.resolveNoteLink.bind(this),
@@ -588,7 +599,7 @@ export default class WechatCopyPlugin extends Plugin {
 			? this.replaceImagesWithPlaceholders(html)
 			: await this.processImagesToBase64(html, currentPath);
 
-		return html;
+		return { html, diagnostics: coreResult.diagnostics };
 	}
 
 	// ── Command: Preview in Browser ──
@@ -616,7 +627,10 @@ export default class WechatCopyPlugin extends Plugin {
 				getFrontmatterString(meta, "author", "公众号作者") || "公众号作者";
 			const titleShort = fname; // placeholder — update later
 
-			const bodyHtml = await this.processMarkdown(mdBody, currentPath);
+			const { html: bodyHtml } = await this.processMarkdown(
+				mdBody,
+				currentPath,
+			);
 
 			const renderCSS = this.getRenderCSS();
 			const fullHtml = `<!DOCTYPE html>
@@ -795,11 +809,12 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 		new Notice("正在渲染排版并处理图片...");
 		try {
 			const { body: mdBody } = this.parseFrontmatter(markdown);
-			const bodyHtml = await this.processMarkdown(
+			const processed = await this.processMarkdown(
 				mdBody,
 				currentPath,
 				true,
 			);
+			const bodyHtml = processed.html;
 			// Strip @media blocks (WeChat handles dark mode on its own; they can't be juice-inlined)
 			const renderCSS = this.getCopyCSS();
 			const copyBodyHtml = normalizeWechatHighlightTags(bodyHtml);
@@ -810,7 +825,18 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 				.replace(/<[^>]+>/g, "")
 				.replace(/\s+/g, " ")
 				.trim();
-			await this.copyToClipboard(inlinedHtml, plainText);
+			await this.copyToClipboard(
+				inlinedHtml,
+				plainText,
+				buildCopyNotice({
+					paragraphCount: countHtmlParagraphs(copyBodyHtml),
+					formulaCount: processed.diagnostics.formulaCount,
+					imagePlaceholderCount: countImagePlaceholders(copyBodyHtml),
+					latexFallbackCount: processed.diagnostics.latexFallbackCount,
+					unresolvedWikilinkCount:
+						processed.diagnostics.unresolvedWikilinkCount,
+				}),
+			);
 		} catch (error) {
 			console.error(error);
 			const msg = error instanceof Error ? error.message : String(error);
@@ -947,7 +973,11 @@ ${CALLOUT_FALLBACK_CSS}`;
 		return `data:${mime};base64,${base64}`;
 	}
 
-	async copyToClipboard(html: string, plainText: string) {
+	async copyToClipboard(
+		html: string,
+		plainText: string,
+		noticeMessage: string,
+	) {
 		const { clipboard } = require("electron") as {
 			clipboard: {
 				write: (data: { text: string; html: string }) => void;
@@ -957,7 +987,7 @@ ${CALLOUT_FALLBACK_CSS}`;
 			text: plainText,
 			html: html,
 		});
-		new Notice("✅ 已复制！图片已替换为占位符，LaTeX公式已渲染为SVG。");
+		new Notice(noticeMessage);
 	}
 
 	async loadSettings() {
