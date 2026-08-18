@@ -1,6 +1,6 @@
 # 微信公众号排版发布规范
 
-> 版本: 1.3.0 | 最后更新: 2026-08-19 | 适用: obsidian-wechat-publish
+> 版本: 1.3.1 | 最后更新: 2026-08-19 | 适用: obsidian-wechat-publish
 
 ## 工具链
 
@@ -8,7 +8,7 @@
 Obsidian MD → obsidian-wechat-publish 插件 → 微信格式化 HTML → 粘贴到公众号后台
 ```
 
-- **插件**: `ARCJ137442/obsidian-wechat-publish` v1.3.0 (forked from `tinyking/obsidian-wechat-publish`, MIT)
+- **插件**: `ARCJ137442/obsidian-wechat-publish` v1.3.1 (forked from `tinyking/obsidian-wechat-publish`, MIT)
 - **核心技术**: markdown-it 渲染 + MathJax SVG 公式 + juice CSS 内联
 - **安装路径**: `.obsidian/plugins/obsidian-wechat-publish/`
 - **触发方式**: `Ctrl/Cmd+P` → `Copy to WeChat`；也支持当前笔记、选区和文件菜单入口

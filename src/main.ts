@@ -1,4 +1,3 @@
-/* eslint-disable obsidianmd/ui/sentence-case */
 import {
 	App,
 	Editor,
@@ -488,18 +487,18 @@ export default class WechatCopyPlugin extends Plugin {
 
 	/** 读取 callout-manager 配置并合并到渲染管道（联动 callout-manager） */
 	async loadCalloutManagerThemes(): Promise<void> {
-		console.log("[wechat-publish] loadCalloutManagerThemes: 开始执行");
+		console.debug("[wechat-publish] loadCalloutManagerThemes: 开始执行");
 		try {
 			const vaultBase =
-				((this.app.vault.adapter as any).getBasePath?.() as // eslint-disable-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+				((this.app.vault.adapter as any).getBasePath?.() as
 					| string
 					| undefined) ?? this.app.vault.adapter.getResourcePath("/");
 			const cmPath = `${vaultBase}/.obsidian/plugins/callout-manager/data.json`;
-			console.log(
+			console.debug(
 				"[wechat-publish] loadCalloutManagerThemes: vault 根目录:",
 				vaultBase,
 			);
-			console.log(
+			console.debug(
 				"[wechat-publish] loadCalloutManagerThemes: 拼接后路径:",
 				cmPath,
 			);
@@ -507,26 +506,26 @@ export default class WechatCopyPlugin extends Plugin {
 			// 使用 Node.js fs 读取（Obsidian 插件上下文可用 require('fs')）
 			const fs = require("fs") as typeof import("fs");
 			if (!fs.existsSync(cmPath)) {
-				console.log(
+				console.debug(
 					"[wechat-publish] loadCalloutManagerThemes: 文件不存在，跳过（这是正常的如果未安装 callout-manager）",
 				);
 				return;
 			}
 
 			const content = fs.readFileSync(cmPath, "utf-8");
-			console.log(
+			console.debug(
 				"[wechat-publish] loadCalloutManagerThemes: 文件读取成功，长度:",
 				content.length,
 			);
 			const json: CalloutManagerJson = JSON.parse(content);
-			console.log(
+			console.debug(
 				"[wechat-publish] loadCalloutManagerThemes: JSON 解析成功, custom:",
 				json.callouts?.custom,
 			);
 
 			const { themes, aliases } = buildMergedCalloutData(json);
 			setupCalloutData(themes, aliases);
-			console.log(
+			console.debug(
 				"[wechat-publish] loadCalloutManagerThemes: 合并完成，已注入 themes 和 aliases",
 			);
 
@@ -538,7 +537,7 @@ export default class WechatCopyPlugin extends Plugin {
 				t.border.startsWith("hsl"),
 			).length;
 
-			console.log(
+			console.debug(
 				`[wechat-publish] loadCalloutManagerThemes: 自定义类型=${customList.length}（${customList.join(", ") || "无"}）` +
 					`, 主题总数=${totalColors}, 被覆盖内置类型=${overridden.length}（${overridden.join(", ") || "无"}）`,
 			);
@@ -933,13 +932,13 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 	renderLatexSvg(formula: string, displayMode: boolean): string {
 		if (!mathjaxSvgModule) {
 			try {
-				const vaultBase = (this.app.vault.adapter as any).getBasePath?.() as string | undefined; // eslint-disable-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+				const vaultBase = (this.app.vault.adapter as any).getBasePath?.() as string | undefined;
 				if (vaultBase) {
 					const fs = require('fs') as typeof import('fs');
 					const modulePath = vaultBase + '/' + this.app.vault.configDir + '/plugins/obsidian-wechat-publish/mathjax-svg.js';
 					if (fs.existsSync(modulePath)) {
 						mathjaxSvgModule = require(modulePath);
-						console.log('[wechat-publish] mathjax-svg.js loaded successfully');
+						console.debug('[wechat-publish] mathjax-svg.js loaded successfully');
 					}
 				}
 			} catch (e) {

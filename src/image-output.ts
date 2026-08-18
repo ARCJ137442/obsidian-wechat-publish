@@ -14,7 +14,6 @@ export function replaceImagesWithPlaceholders(html: string): string {
 		if (src.startsWith("http")) continue;
 		const alt = img.getAttribute("alt") || "图片";
 		const placeholder = doc.createElement("p");
-		// eslint-disable-next-line obsidianmd/no-static-styles-assignment
 		placeholder.setAttribute(
 			"style",
 			"text-align:center;color:#999;font-size:14px;margin:16px 0",

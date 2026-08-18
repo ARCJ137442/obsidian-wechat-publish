@@ -1,4 +1,4 @@
-import MarkdownIt, { type PluginSimple } from "markdown-it";
+import MarkdownIt, { type MarkdownIt as MarkdownItType } from "markdown-it";
 // @ts-ignore - no types available
 import markdownItMark from "markdown-it-mark";
 import preprocessCallouts, { postprocessCallouts } from "./callout-plugin";
@@ -7,6 +7,8 @@ import {
 	replaceLatexPlaceholderHtml,
 } from "./latex-rendering";
 import { convertWikiLinks, type WikiLinkResolver } from "./wiki-links";
+
+type PluginSimple = (md: MarkdownItType) => void;
 
 export type LatexRenderResult = {
 	html: string;

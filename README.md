@@ -2,7 +2,7 @@
 
 [![Obsidian Plugin](https://img.shields.io/badge/Obsidian-Plugin-9654b5)](https://obsidian.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.3.0-blue)](https://github.com/ARCJ137442/obsidian-wechat-publish/releases)
+[![Version](https://img.shields.io/badge/version-1.3.1-blue)](https://github.com/ARCJ137442/obsidian-wechat-publish/releases)
 
 将 Obsidian Markdown 文章一键复制到微信公众号，支持"简约日记风"排版主题。
 
@@ -41,7 +41,7 @@ Callout 内部支持完整的 markdown 语法：**粗体**、*斜体*、`行内�
 2. 将 zip 解压到 Obsidian vault 的 `.obsidian/plugins/obsidian-wechat-publish/` 目录
 3. 重启 Obsidian，启用插件
 
-当前插件依赖桌面端的 Node.js/Electron 能力（文件读取、预览服务器和原生剪贴板），暂不支持移动端。
+当前插件依赖桌面端的 Node.js/Electron 能力（文件读取、预览服务器和原生剪贴板），最低 Obsidian 版本为 0.16.2，暂不支持移动端。
 
 ### 开发者安装
 

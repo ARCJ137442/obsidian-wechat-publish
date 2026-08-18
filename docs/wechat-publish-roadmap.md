@@ -2,7 +2,7 @@
 
 > 状态：阶段 6 CSS 基础与 CLI 评估完成，多主题/正式 CLI 待后续
 > 建立日期：2026-08-18
-> 当前基线：v1.3.0
+> 当前基线：v1.3.1
 
 ## 目标
 
@@ -18,6 +18,15 @@
 - 复制提示应当提供信息，但不能用模态框或预检流程阻塞用户。
 - CSS 现有输出以稳定为先；除非出现可复现的兼容性问题，不在本轮随意改动排版细节。
 - 所有 HTML 输出行为的改动都必须配套真实渲染管线测试或固定样例测试。
+
+## 依赖维护（v1.3.1）
+
+- [x] 升级 Markdown/HTML 渲染与测试工具链：`markdown-it` 15、`juice` 11.1.1、`esbuild` 0.28、TypeScript 5.9、Vitest 4.1、Obsidian API 类型 1.13.1 等。
+- [x] 升级 `lucide-static`、`linkedom`、Rollup、TypeScript ESLint 及相关类型依赖；移除项目未使用且已弃用的 `rollup-plugin-terser`。
+- [x] 适配新版 Markdown-it 类型导出和新版 Obsidian lint 规则，明确最低 Obsidian 版本为 0.16.2。
+- [x] `npm audit --audit-level=low` 无漏洞；真实样式 fixture、208 个测试、lint 和 build 全部通过。
+
+说明：`@eslint/json`、`globals` 和 TypeScript 仍受 `eslint-plugin-obsidianmd` 0.4.1 的 peer dependency 约束；TypeScript 7、ESLint 10 和 Node 26 类型未强行升级，以保持 Node 20/22 CI 与当前插件 lint 生态兼容。
 
 ## 实施顺序
 
