@@ -44,6 +44,10 @@ import {
 	countHtmlParagraphs,
 	countImagePlaceholders,
 } from "./copy-notice";
+import {
+	clearPreviewTimeout,
+	renewPreviewTimeout,
+} from "./preview-timeout";
 
 // ==========================================
 // 默认样式：仿微信公众号爆款文章风格
@@ -437,6 +441,7 @@ interface WechatPluginSettings {
 const DEFAULT_SETTINGS: WechatPluginSettings = {
 	customCSS: DEFAULT_CSS,
 };
+const PREVIEW_IDLE_TIMEOUT_MS = 30_000;
 
 type ProcessedMarkdown = {
 	html: string;
@@ -477,9 +482,10 @@ export default class WechatCopyPlugin extends Plugin {
 
 	onunload() {
 		if (this._previewServer) {
-			clearTimeout(this._previewServerTimeout!);
+			clearPreviewTimeout(this._previewServerTimeout);
 			this._previewServer.close();
 			this._previewServer = null;
+			this._previewServerTimeout = null;
 		}
 	}
 
@@ -612,9 +618,10 @@ export default class WechatCopyPlugin extends Plugin {
 		try {
 			// Close previous preview server if still running
 			if (this._previewServer) {
-				clearTimeout(this._previewServerTimeout!);
+				clearPreviewTimeout(this._previewServerTimeout);
 				this._previewServer.close();
 				this._previewServer = null;
+				this._previewServerTimeout = null;
 			}
 
 			// Extract metadata from frontmatter and filename
@@ -773,12 +780,14 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 					_req: import("http").IncomingMessage,
 					res: import("http").ServerResponse,
 				) => {
+					this.renewPreviewServerTimeout(server);
 					res.writeHead(200, {
 						"Content-Type": "text/html; charset=utf-8",
 					});
 					res.end(fullHtml);
 				},
 			);
+			this._previewServer = server;
 			await new Promise<void>((resolve) =>
 				server.listen(0, "127.0.0.1", resolve),
 			);
@@ -790,18 +799,30 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 			};
 			await shell.openExternal(url);
 
-			// Track & auto-close: keep alive 30s for refreshes, close on next preview
-			this._previewServer = server;
-			this._previewServerTimeout = setTimeout(() => {
-				server.close();
-				if (this._previewServer === server) this._previewServer = null;
-			}, 30000);
+			// Track & auto-close: keep alive 30s after the latest page request,
+			// close on the next preview or plugin unload.
+			this.renewPreviewServerTimeout(server);
 			new Notice("✅ 预览已在浏览器中打开");
 		} catch (error) {
 			console.error(error);
 			const msg = error instanceof Error ? error.message : String(error);
 			new Notice("❌ 预览失败：" + msg);
 		}
+	}
+
+	private renewPreviewServerTimeout(server: import("http").Server): void {
+		if (this._previewServer !== server) return;
+		this._previewServerTimeout = renewPreviewTimeout(
+			this._previewServerTimeout,
+			() => {
+				server.close();
+				if (this._previewServer === server) {
+					this._previewServer = null;
+					this._previewServerTimeout = null;
+				}
+			},
+			PREVIEW_IDLE_TIMEOUT_MS,
+		);
 	}
 
 	// ── Command: Copy to WeChat ──
