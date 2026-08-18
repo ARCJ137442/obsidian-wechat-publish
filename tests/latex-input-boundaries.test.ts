@@ -9,6 +9,15 @@ function renderWithFormulaProbe(markdown: string) {
 	});
 }
 
+function renderWithFormulaProbeAndWikilinks(markdown: string) {
+	return renderMarkdownCore(markdown, {
+		resolveWikiLink: () => null,
+		renderLatex: (formula, displayMode) => ({
+			html: `<svg data-formula="${formula}" data-display="${displayMode}"></svg>`,
+		}),
+	});
+}
+
 describe("LaTeX 输入边界", () => {
 	it("不把 fenced code 中的美元文本识别为公式", () => {
 		const result = renderWithFormulaProbe(
@@ -18,6 +27,58 @@ describe("LaTeX 输入边界", () => {
 		expect(result.diagnostics.formulaCount).toBe(1);
 		expect(result.html).toContain("$not a formula$");
 		expect(result.html).toContain('data-formula="x"');
+	});
+
+	it("不把 CRLF fenced code 中的美元文本识别为公式", () => {
+		const result = renderWithFormulaProbe(
+			[
+				"```Python\r\n",
+				"print('代码块中的美元符号 $ a + b = c $')\r\n",
+				"\r\n",
+				"x = '$$ 不应该被解析成换行公式 $$'\r\n",
+				"a = x + 1 # 正常代码\r\n",
+				"\r\n",
+				"Markdown示例 = '**粗体** *斜体* ==高亮== `代码` ```代码块```'\r\n",
+				"```\r\n",
+				"\r\n",
+				"正文 $z$",
+			].join(""),
+		);
+		expect(result.diagnostics.formulaCount).toBe(1);
+		expect(result.html).toContain("language-Python");
+		expect(result.html).toContain("$ a + b = c $");
+		expect(result.html).toContain("$$ 不应该被解析成换行公式 $$");
+		expect(result.html).toContain("```代码块```");
+		expect(result.html).toContain('data-formula="z"');
+	});
+
+	it("不把 CRLF fenced code 中的可识别公式样式文本识别为公式", () => {
+		const result = renderWithFormulaProbe(
+			"```Python\r\nprint('$x$')\r\nvalue = '$$y$$'\r\n```\r\n\n正文 $z$",
+		);
+
+		expect(result.diagnostics.formulaCount).toBe(1);
+		expect(result.html).toContain("print('$x$')");
+		expect(result.html).toContain("value = '$$y$$'");
+		expect(result.html).toContain('data-formula="z"');
+	});
+
+	it("Wikilink 转换后仍保护含行内三反引号的 fenced code", () => {
+		const markdown = [
+			"```Python\n",
+			"print('代码块中的美元符号 $x$')\n",
+			"x = '$$ 不应该被解析成换行公式 $$'\n",
+			"Markdown示例 = '**粗体** *斜体* ==高亮== `代码` ```代码块```'\n",
+			"```\n",
+			"\n正文 $z$",
+		].join("");
+		const result = renderWithFormulaProbeAndWikilinks(markdown);
+
+		expect(result.diagnostics.formulaCount).toBe(1);
+		expect(result.html).toContain("print('代码块中的美元符号 $x$')");
+		expect(result.html).toContain("$$ 不应该被解析成换行公式 $$");
+		expect(result.html).toContain("```代码块```");
+		expect(result.html).toContain('data-formula="z"');
 	});
 
 	it("不把 inline code 中的美元文本识别为公式", () => {

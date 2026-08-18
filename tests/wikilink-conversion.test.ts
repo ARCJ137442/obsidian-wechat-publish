@@ -55,6 +55,20 @@ describe("Wikilink 转换", () => {
 		expect(result).not.toContain("wechat-note-link");
 	});
 
+	it("恢复代码块时保留美元符号和行内三反引号", () => {
+		const markdown = [
+			"```Python\n",
+			"print('代码块中的美元符号 $x$')\n",
+			"x = '$$ 不应该被解析成换行公式 $$'\n",
+			"Markdown示例 = '**粗体** `代码` ```代码块```'\n",
+			"```\n",
+		].join("");
+
+		expect(convertWikiLinks(markdown, "test.md", createResolveNoteLink({}))).toBe(
+			markdown,
+		);
+	});
+
 	it("将嵌入图片转换为普通 Markdown 图片", () => {
 		const resolve = createResolveNoteLink({});
 		expect(convertWikiLinks("![[image.png]]", "test.md", resolve)).toBe(
