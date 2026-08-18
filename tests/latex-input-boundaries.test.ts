@@ -108,12 +108,12 @@ describe("LaTeX 输入边界", () => {
 		expect(result.html).toContain("$200");
 	});
 
-	it("不让未配对的数字金额跨越后续美元符号形成公式", () => {
-		const result = renderWithFormulaProbe("从$100到$200，正文公式是 $x$。");
+	it("按 Obsidian 规则配对同一行中边界非空的美元符号", () => {
+		const result = renderWithFormulaProbe("「$100」加上「100$」= $200");
 
 		expect(result.diagnostics.formulaCount).toBe(1);
-		expect(result.html).toContain('data-formula="x"');
-		expect(result.html).toContain("从$100到$200");
+		expect(result.html).toContain('data-formula="100」加上「100"');
+		expect(result.html).toContain("$200");
 	});
 
 	it("渲染成对的纯数字行内公式和纯数字行间公式", () => {
@@ -128,6 +128,7 @@ describe("LaTeX 输入边界", () => {
 		expect(result.html).toContain('data-formula="88557731"');
 		expect(result.html).toContain('data-formula="a"');
 		expect(result.html).toContain('data-formula="123456789"');
+		expect(result.html).toContain('data-display="true"');
 	});
 
 	it("把成对的纯数字美元定界符当作公式，同时保留未闭合货币金额", () => {
@@ -137,6 +138,23 @@ describe("LaTeX 输入边界", () => {
 		expect(result.html).toContain('data-formula="100"');
 		expect(result.html).toContain("未闭合价格：$100");
 		expect(result.html).not.toContain("成对数字：$100$");
+	});
+
+	it("遵循 Obsidian 的行内美元空白边界", () => {
+		const result = renderWithFormulaProbe(
+			"孤立符号：$ $ $ $ $\n\n" +
+				"空格开头：$ a + b = 没渲染 $\n\n" +
+				"只贴一边：$ 2 + 4 = 不渲染，因为只贴一边$\n\n" +
+				"引号边界：$「这个则会渲染，即便两边都是引号，破坏掉一边不紧挨美元，就会失效」$",
+		);
+
+		expect(result.diagnostics.formulaCount).toBe(1);
+		expect(result.html).toContain(
+			'data-formula="「这个则会渲染，即便两边都是引号，破坏掉一边不紧挨美元，就会失效」"',
+		);
+		expect(result.html).toContain("孤立符号：$ $ $ $ $");
+		expect(result.html).toContain("空格开头：$ a + b = 没渲染 $");
+		expect(result.html).toContain("只贴一边：$ 2 + 4 = 不渲染，因为只贴一边$");
 	});
 
 	it("保留转义美元符号，不识别为公式", () => {

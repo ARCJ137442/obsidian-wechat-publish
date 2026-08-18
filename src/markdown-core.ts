@@ -156,23 +156,12 @@ function findClosingDollar(
 
 function isLikelyInlineFormulaStart(text: string, index: number): boolean {
 	const next = text[index + 1] ?? "";
-	// A dollar followed by whitespace cannot open an inline formula.
-	if (next === "" || /\s/.test(next)) return false;
-	if (!/\d/.test(next)) return true;
-
-	// A complete numeric body is an explicit numeric formula, including
-	// `$1$`, `$234$`, and `$100$`. An unpaired `$100` remains currency text.
-	const closingIndex = findClosingDollar(text, index + 1, 1);
-	if (closingIndex < 0) return false;
-	const body = text.slice(index + 1, closingIndex).trim();
-	if (/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(body)) return true;
-
-	// Do not let a numeric currency amount pair with a later formula marker,
-	// e.g. `$100到$200，正文 $x$`. A nested dollar means this is prose, not
-	// one numeric formula. Other math cues preserve forms such as `$6 \log_2
-	// 10$` and `$1 \to 2$`.
-	if (body.includes("$")) return false;
-	return /\\[A-Za-z]|[=^_{}+\-*/]/.test(body);
+	// Match Obsidian's inline delimiter rule: the opening dollar must touch a
+	// non-whitespace character. The closing delimiter is validated separately
+	// by findClosingDollar(), so paired numeric formulas such as `$1$` and
+	// `$100$` are not mistaken for currency merely because they start with a
+	// digit. An unpaired `$100` remains ordinary text.
+	return next !== "" && !/\s/.test(next);
 }
 
 function extractLatexWithPlaceholders(markdown: string): LatexExtraction {
