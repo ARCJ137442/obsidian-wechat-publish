@@ -22,6 +22,11 @@ import {
 	replaceLocalImageSources,
 } from "./image-output";
 import {
+	getFrontmatterString,
+	parseFrontmatter as parseFrontmatterCore,
+	type FrontmatterMeta,
+} from "./frontmatter";
+import {
 	buildMergedCalloutData,
 	setupCalloutData,
 	getActiveThemes,
@@ -544,28 +549,14 @@ export default class WechatCopyPlugin extends Plugin {
 	// ── Helpers ──
 
 	parseFrontmatter(text: string): {
-		meta: Record<string, string>;
+		meta: FrontmatterMeta;
 		body: string;
 	} {
-		const meta: Record<string, string> = {};
-		let body = text;
-		if (text.startsWith("---")) {
-			const end = text.indexOf("---", 3);
-			if (end !== -1) {
-				const fm = text.slice(3, end).trim();
-				body = text.slice(end + 3).trim();
-				for (const line of fm.split("\n")) {
-					const colonIdx = line.indexOf(":");
-					if (colonIdx > 0) {
-						const key = line.slice(0, colonIdx).trim();
-						let val = line.slice(colonIdx + 1).trim();
-						val = val.replace(/^["']|["']$/g, "");
-						meta[key] = val;
-					}
-				}
-			}
+		const parsed = parseFrontmatterCore(text);
+		if (parsed.error) {
+			console.warn("[wechat-publish] Frontmatter YAML 解析失败:", parsed.error);
 		}
-		return { meta, body };
+		return { meta: parsed.meta, body: parsed.body };
 	}
 
 	escapeHtml(text: string): string {
@@ -619,9 +610,10 @@ export default class WechatCopyPlugin extends Plugin {
 			const { meta, body: mdBody } = this.parseFrontmatter(markdown);
 			const fname =
 				currentPath.split("/").pop()?.replace(/\.md$/, "") || "";
-			const title = meta["title"] || fname;
-			const date = meta["date"] || "";
-			const author = meta["author"] || "公众号作者";
+			const title = getFrontmatterString(meta, "title", fname) || fname;
+			const date = getFrontmatterString(meta, "date");
+			const author =
+				getFrontmatterString(meta, "author", "公众号作者") || "公众号作者";
 			const titleShort = fname; // placeholder — update later
 
 			const bodyHtml = await this.processMarkdown(mdBody, currentPath);

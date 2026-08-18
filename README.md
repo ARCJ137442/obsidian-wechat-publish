@@ -36,7 +36,7 @@ Callout 内部支持完整的 markdown 语法：**粗体**、*斜体*、`行内�
 ### 手动安装
 
 1. 从 [Releases](https://github.com/ARCJ137442/obsidian-wechat-publish/releases) 下载对应版本的插件 zip
-2. 复制到 Obsidian vault 的 `.obsidian/plugins/obsidian-wechat-publish/` 目录
+2. 将 zip 解压到 Obsidian vault 的 `.obsidian/plugins/obsidian-wechat-publish/` 目录
 3. 重启 Obsidian，启用插件
 
 当前插件依赖桌面端的 Node.js/Electron 能力（文件读取、预览服务器和原生剪贴板），暂不支持移动端。

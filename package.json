@@ -47,6 +47,7 @@
 		"markdown-it": "^14.1.0",
 		"markdown-it-mark": "^4.0.0",
 		"mathjax-full": "^3.2.1",
-		"obsidian": "latest"
+		"obsidian": "latest",
+		"yaml": "^2.9.0"
 	}
 }
