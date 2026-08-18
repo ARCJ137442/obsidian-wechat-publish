@@ -20,6 +20,8 @@ jobs:
 
         steps:
             - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
             - name: Resolve release version
               id: release
               env:
@@ -37,10 +39,13 @@ jobs:
             - run: npm run build
             - run: npm run lint
             - run: npm test
+            - name: Generate release notes
+              run: npm run release:notes -- "${{ steps.release.outputs.tag }}" release-notes.md
             - name: Package plugin files
               run: zip -j "obsidian-wechat-publish-${{ steps.release.outputs.version }}.zip" main.js manifest.json styles.css mathjax-svg.js
             - name: Create GitHub Release
               uses: softprops/action-gh-release@v2
               with:
                   tag_name: ${{ steps.release.outputs.tag }}
+                  body_path: release-notes.md
                   files: obsidian-wechat-publish-${{ steps.release.outputs.version }}.zip
