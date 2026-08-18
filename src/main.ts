@@ -482,10 +482,7 @@ export default class WechatCopyPlugin extends Plugin {
 
 	onunload() {
 		if (this._previewServer) {
-			clearPreviewTimeout(this._previewServerTimeout);
-			this._previewServer.close();
-			this._previewServer = null;
-			this._previewServerTimeout = null;
+			this.closePreviewServer(this._previewServer);
 		}
 	}
 
@@ -618,10 +615,7 @@ export default class WechatCopyPlugin extends Plugin {
 		try {
 			// Close previous preview server if still running
 			if (this._previewServer) {
-				clearPreviewTimeout(this._previewServerTimeout);
-				this._previewServer.close();
-				this._previewServer = null;
-				this._previewServerTimeout = null;
+				this.closePreviewServer(this._previewServer);
 			}
 
 			// Extract metadata from frontmatter and filename
@@ -788,9 +782,24 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 				},
 			);
 			this._previewServer = server;
-			await new Promise<void>((resolve) =>
-				server.listen(0, "127.0.0.1", resolve),
-			);
+			await new Promise<void>((resolve, reject) => {
+				const onListening = () => {
+					server.off("error", onListenError);
+					resolve();
+				};
+				const onListenError = (error: Error) => {
+					server.off("listening", onListening);
+					reject(error);
+				};
+				server.once("error", onListenError);
+				server.once("listening", onListening);
+				server.listen(0, "127.0.0.1");
+			});
+			server.on("error", (error: Error) => {
+				if (this._previewServer !== server) return;
+				this.closePreviewServer(server, false);
+				new Notice("❌ 预览服务器错误：" + error.message);
+			});
 			const addr = server.address() as { port: number };
 			const url = `http://127.0.0.1:${addr.port}`;
 
@@ -815,14 +824,26 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 		this._previewServerTimeout = renewPreviewTimeout(
 			this._previewServerTimeout,
 			() => {
-				server.close();
-				if (this._previewServer === server) {
-					this._previewServer = null;
-					this._previewServerTimeout = null;
-				}
+				this.closePreviewServer(server);
 			},
 			PREVIEW_IDLE_TIMEOUT_MS,
 		);
+	}
+
+	private closePreviewServer(
+		server: import("http").Server,
+		showError = true,
+	): void {
+		clearPreviewTimeout(this._previewServerTimeout);
+		this._previewServerTimeout = null;
+		if (this._previewServer === server) this._previewServer = null;
+
+		if (!server.listening) return;
+		server.close((error?: Error) => {
+			if (error && showError) {
+				new Notice("❌ 预览服务器关闭失败：" + error.message);
+			}
+		});
 	}
 
 	// ── Command: Copy to WeChat ──
