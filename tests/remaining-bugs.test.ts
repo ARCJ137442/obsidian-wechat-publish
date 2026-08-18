@@ -5,71 +5,16 @@
  * 3. <mark> text should adapt for dark mode
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import MarkdownIt from 'markdown-it';
-import markdownItMark from 'markdown-it-mark';
 import fs from 'fs';
 import path from 'path';
+import { renderMarkdownCore } from '../src/markdown-core';
 
-// ── Pipeline replica ──
-const ESC_MAP = new Map<string, string>();
-function mdUnescape(text: string): string {
-	ESC_MAP.clear();
-	const e: [string, string][] = [
-		['\\\\', '\\'], ['\\_', '_'], ['\\*', '*'], ['\\`', '`'],
-		['\\#', '#'], ['\\+', '+'], ['\\-', '-'], ['\\.', '.'],
-		['\\!', '!'], ['\\(', '('], ['\\)', ')'], ['\\[', '['],
-		['\\]', ']'], ['\\{', '{'], ['\\}', '}'], ['\\~', '~'],
-	];
-	for (let i = 0; i < e.length; i++) {
-		const ph = `\uE000MDESC${i}\uE000`;
-		ESC_MAP.set(ph, e[i][1]);
-		text = text.split(e[i][0]).join(ph);
-	}
-	return text;
-}
-function restoreEscapes(text: string): string {
-	for (const [ph, ch] of ESC_MAP) text = text.split(ph).join(ch);
-	return text;
-}
-
-// ── LaTeX → SVG (mock for test; real plugin uses MathJax SVG) ──
-async function renderMarkdown(mdText: string): Promise<string> {
-	// Step 1: mdUnescape (protect backslash escapes)
-	const unescaped = mdUnescape(mdText);
-
-	// Step 2: LaTeX $...$ → placeholders (same as plugin)
-	const latexMap = new Map<string, string>();
-	let idx = 0;
-	const withLatexPH = unescaped
-		.replace(/\$\$([\s\S]+?)\$\$/g, (_m: string, f: string) => {
-			const ph = `\uE000LATEX${idx}\uE000`; latexMap.set(ph, f.trim()); idx++; return ph;
-		})
-		.replace(/\$(.+?)\$/g, (_m: string, f: string) => {
-			const ph = `\uE000LATEX${idx}\uE000`; latexMap.set(ph, f.trim()); idx++; return ph;
-		});
-
-	// Step 3: markdown-it
-	const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
-	md.use(markdownItMark);
-	let html = md.render(withLatexPH);
-
-	// Step 4: restore backslash escapes
-	html = restoreEscapes(html);
-
-	// Step 5: resolve LaTeX placeholders → SVG (async)
-	for (const [ph, formula] of latexMap) {
-		const svg = await renderLatexToSvg(formula);
-		html = html.split(ph).join(svg);
-	}
-
-	return html;
-}
-
-// Mock SVG renderer: returns a simple SVG for testing (no network)
-async function renderLatexToSvg(formula: string): Promise<string> {
-	// Return a valid inline SVG with the formula as alt text
-	const escaped = formula.replace(/&/g, '&amp;').replace(/</g, '&lt;');
-	return `<svg style="vertical-align:middle;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><text fill="currentColor" font-size="14">${escaped}</text></svg>`;
+function renderMarkdown(mdText: string): string {
+	return renderMarkdownCore(mdText, {
+		renderLatex: (formula) => ({
+			html: `<svg style="vertical-align:middle;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><text fill="currentColor" font-size="14">${formula}</text></svg>`,
+		}),
+	}).html;
 }
 
 // ── Dark mode CSS checker ──
@@ -89,7 +34,7 @@ describe('Bug 1: LaTeX $...$ → SVG', () => {
 
 	it('inline formula $E=mc^2$ renders as SVG', async () => {
 		const input = '当 $E = mc^2$ 出现在正文中时。';
-		const output = await renderMarkdown(input);
+	const output = renderMarkdown(input);
 		// Regression: LaTeX should be resolved before HTML leaves the pipeline.
 		expect(output).toContain('<svg');
 		expect(output).not.toContain('$E = mc^2$');
@@ -98,13 +43,13 @@ describe('Bug 1: LaTeX $...$ → SVG', () => {
 
 	it('block formula $$...$$ renders as SVG', async () => {
 		const input = '$$\n\\sum_{n=1}^{\\infty} \\frac{1}{n^2}\n$$';
-		const output = await renderMarkdown(input);
+	const output = renderMarkdown(input);
 		expect(output).toContain('<svg');
 	});
 
 	it('another inline formula $6 \\log_2 10$ renders as SVG', async () => {
 		const input = '信息量大约是 $6 \\log_2 10$ 比特。';
-		const output = await renderMarkdown(input);
+	const output = renderMarkdown(input);
 		expect(output).toContain('<svg');
 	});
 

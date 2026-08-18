@@ -1,6 +1,6 @@
 # 微信公众号发布插件迭代路线图
 
-> 状态：阶段一实施中
+> 状态：阶段二完成，准备进入阶段 3.1
 > 建立日期：2026-08-18
 > 当前基线：v1.1.0
 
@@ -60,7 +60,7 @@
 
 - [x] 在 `package.json` 增加 `npm test`，执行 `vitest run`。
 - [x] GitHub Actions 在 build、lint 之外执行 `npm test`。
-- [ ] 保留 Node 20/22 矩阵，确认测试不依赖本地 Vault、浏览器或未提交文件。
+- [x] 保留 Node 20/22 矩阵，确认测试不依赖本地 Vault、浏览器或未提交文件。
 - [x] 发布 workflow 复用同一套检查命令。
 
 验收标准：Pull Request 和 tag 构建都必须同时通过 build、lint、test；失败时不能上传 Release 产物。
@@ -69,9 +69,9 @@
 
 ### 2.1 拆出纯渲染核心
 
-- [ ] 从 `src/main.ts` 拆出不依赖 Obsidian API 的 Markdown 渲染核心。
-- [ ] 将 Obsidian 文件解析、图片读取、metadata 查询、剪贴板和预览服务器作为适配层。
-- [ ] 统一返回渲染结果和诊断信息，例如：
+- [x] 从 `src/main.ts` 拆出不依赖 Obsidian API 的 Markdown 渲染核心。
+- [x] 将 Obsidian 文件解析、图片读取、metadata 查询、剪贴板和预览服务器作为适配层。
+- [x] 统一返回渲染结果和诊断信息，例如：
 
 ```ts
 {
@@ -86,16 +86,16 @@
 }
 ```
 
-- [ ] 保持 Preview 与 Copy 共用同一套 Markdown → HTML 核心逻辑，只在图片和 CSS 输出阶段分叉。
+- [x] 保持 Preview 与 Copy 共用同一套 Markdown → HTML 核心逻辑，只在图片和 CSS 输出阶段分叉。
 
 原因：当前 `main.ts` 同时承担渲染、文件系统、预览服务器、剪贴板、设置和主题 CSS；测试只能复制实现，难以证明真实插件没有回归。
 
 ### 2.2 让测试调用真实实现
 
-- [ ] 删除或改造复制 `main.ts` 逻辑的测试辅助实现。
-- [ ] 用真实核心渲染器覆盖 Callout、Wikilink、LaTeX、图片和高亮。
-- [ ] 增加固定 Markdown fixture 与 HTML contract/golden tests。
-- [ ] 对 Preview 和 Copy 的分叉结果分别做最小集成测试。
+- [x] 删除或改造复制 `main.ts` 逻辑的测试辅助实现。
+- [x] 用真实核心渲染器覆盖 Callout、Wikilink、LaTeX、图片和高亮。
+- [x] 增加固定 Markdown fixture 与 HTML contract/golden tests。
+- [x] 对 Preview 和 Copy 的分叉结果分别做最小集成测试。
 
 验收标准：核心渲染逻辑只存在一份；测试失败时能定位到实际生产代码，而不是测试副本。
 

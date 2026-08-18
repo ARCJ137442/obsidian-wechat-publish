@@ -6,30 +6,16 @@
  * 2. 正文中的 markdown 语法（粗体、斜体、高亮、列表、代码等）能被正确解析
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import MarkdownIt from 'markdown-it';
-import markdownItMark from 'markdown-it-mark';
-import preprocessCallouts, {
-    postprocessCallouts,
-    getActiveThemes,
-    buildMergedCalloutData,
-    setupCalloutData,
-} from '../src/callout-plugin';
+import { buildMergedCalloutData, setupCalloutData } from '../src/callout-plugin';
+import { renderMarkdownCore } from '../src/markdown-core';
 import { CALLOUT_MANAGER_FIXTURE as VAULT_CM } from './fixtures/callout-manager';
 
 // ── 初始化：把合并后的数据注入插件状态 ──
 const { themes, aliases } = buildMergedCalloutData(VAULT_CM);
 setupCalloutData(themes, aliases);
 
-// ── Pipeline replica ──
 function renderCalloutMarkdown(mdText: string): string {
-    const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
-    md.use(markdownItMark);
-
-    const preprocessed = preprocessCallouts(mdText);
-    let html = md.render(preprocessed);
-    html = postprocessCallouts(html);
-
-    return html;
+	return renderMarkdownCore(mdText).html;
 }
 
 // ── Tests ──

@@ -9,12 +9,19 @@ import {
 	Setting,
 	TFile,
 } from "obsidian";
-import MarkdownIt, { type PluginSimple } from "markdown-it";
-// @ts-ignore - no types available
-import markdownItMark from "markdown-it-mark";
 import juice from "juice";
-import preprocessCallouts, {
-	postprocessCallouts,
+
+import {
+	renderMarkdownCore,
+	type LatexRenderResult,
+	preventBreakAfterStrong as preventBreakAfterStrongCore,
+} from "./markdown-core";
+import { convertWikiLinks as convertWikiLinksCore } from "./wiki-links";
+import {
+	replaceImagesWithPlaceholders as replaceImagesWithPlaceholdersCore,
+	replaceLocalImageSources,
+} from "./image-output";
+import {
 	buildMergedCalloutData,
 	setupCalloutData,
 	getActiveThemes,
@@ -24,7 +31,6 @@ import {
 	normalizeWechatHighlightTags,
 	renderLatexFallback,
 	renderLatexHtml,
-	replaceLatexPlaceholderHtml,
 } from "./latex-rendering";
 import { buildCopyCSS } from "./copy-css";
 
@@ -358,46 +364,6 @@ const CALLOUT_FALLBACK_CSS = `
 	}
 `;
 
-// ──────── Enhanced MD Preprocessing ────────
-
-/** Convert Markdown backslash escapes to placeholder tokens. */
-function mdUnescape(text: string): string {
-	const escapes: [string, string][] = [
-		["\\\\", "\\"],
-		["\\_", "_"],
-		["\\*", "*"],
-		["\\`", "`"],
-		["\\#", "#"],
-		["\\+", "+"],
-		["\\-", "-"],
-		["\\.", "."],
-		["\\!", "!"],
-		["\\(", "("],
-		["\\)", ")"],
-		["\\[", "["],
-		["\\]", "]"],
-		["\\{", "{"],
-		["\\}", "}"],
-		["\\~", "~"],
-	];
-	let result = text;
-	for (let i = 0; i < escapes.length; i++) {
-		const ph = `\uE000MDESC${i}\uE000`;
-		result = result.split(escapes[i]![0]).join(ph);
-		escapePlaceholders.set(ph, escapes[i]![1]);
-	}
-	return result;
-}
-const escapePlaceholders = new Map<string, string>();
-
-function restoreEscapes(text: string): string {
-	let result = text;
-	for (const [ph, ch] of escapePlaceholders) {
-		result = result.split(ph).join(ch);
-	}
-	return result;
-}
-
 // MathJax SVG renderer — built separately with rollup
 let mathjaxSvgModule: { tex2svg: (formula: string, display: boolean) => string } | null = null;
 
@@ -616,49 +582,17 @@ export default class WechatCopyPlugin extends Plugin {
 		currentPath: string,
 		forCopy = false,
 	): Promise<string> {
-		// 1. WikiLink normalization
-		const normalized = this.convertWikiLinks(markdown, currentPath);
+		const coreResult = renderMarkdownCore(markdown, {
+			currentPath,
+			resolveWikiLink: this.resolveNoteLink.bind(this),
+			renderLatex: (formula, displayMode): LatexRenderResult => {
+				const html = this.renderLatexSvg(formula, displayMode);
+				return { html, fallback: html.includes("【公式：") };
+			},
+		});
+		let html = coreResult.html;
 
-		// 2. LaTeX $...$ → placeholder tokens (BEFORE mdUnescape to preserve \\ in formulas)
-		const latexMap = new Map<string, { formula: string; displayMode: boolean }>();
-		let latexIdx = 0;
-		const withLatexPH = normalized
-			.replace(/\$\$([\s\S]+?)\$\$/g, (_m, f: string) => {
-				const ph = `\uE000LATEX${latexIdx}\uE000`;
-				latexMap.set(ph, { formula: f.trim(), displayMode: true });
-				latexIdx++;
-				return ph;
-			})
-			.replace(/\$(.+?)\$/g, (_m, f: string) => {
-				const ph = `\uE000LATEX${latexIdx}\uE000`;
-				latexMap.set(ph, { formula: f.trim(), displayMode: false });
-				latexIdx++;
-				return ph;
-			});
-
-		// 3. Backslash unescape → placeholders (after LaTeX extraction)
-		const unescaped = mdUnescape(withLatexPH);
-
-		// 4. markdown-it with plugins
-		const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
-		md.use(markdownItMark as PluginSimple); // ==highlight== → <mark>
-		const preprocessed = preprocessCallouts(unescaped);
-		let html = md.render(preprocessed);
-		html = postprocessCallouts(html); // ← 恢复 callout 结构
-
-		// 5. Restore backslash escapes
-		html = restoreEscapes(html);
-
-		// 6. Fix bold-colon break
-		html = this.preventBreakAfterStrong(html);
-
-		// 7. Resolve LaTeX placeholders → MathJax SVG
-		for (const [ph, { formula, displayMode }] of latexMap) {
-			const rendered = this.renderLatexSvg(formula, displayMode);
-			html = replaceLatexPlaceholderHtml(html, ph, rendered, displayMode);
-		}
-
-		// 8. Image → Base64
+		// Image output is the only Preview/Copy branch after the shared core.
 		html = forCopy
 			? this.replaceImagesWithPlaceholders(html)
 			: await this.processImagesToBase64(html, currentPath);
@@ -931,92 +865,11 @@ ${CALLOUT_FALLBACK_CSS}`;
 	}
 
 	convertWikiLinks(markdown: string, sourcePath: string): string {
-		// 1. 代码块保护：提取 ```...``` 和 `...` 用占位符替换
-		const codeBlocks: string[] = [];
-		let protectedMd = markdown
-			.replace(/```[\s\S]*?```/g, (m) => {
-				codeBlocks.push(m);
-				return `\uE000CODE${codeBlocks.length - 1}\uE000`;
-			})
-			.replace(/`[^`\n]+`/g, (m) => {
-				codeBlocks.push(m);
-				return `\uE000CODE${codeBlocks.length - 1}\uE000`;
-			});
-
-		// 2. 处理图片嵌入 ![[...]]（保持原有逻辑）
-		const wikiImageRegex = /!\[\[([^\]]*?)\]\]/g;
-		protectedMd = protectedMd.replace(
-			wikiImageRegex,
-			(_match: string, content: string) => {
-				let fileName = content;
-				let altText = "";
-				if (content.includes("|")) {
-					const parts = content.split("|");
-					fileName = parts[0] ?? "";
-					altText = parts.slice(1).join("|");
-				}
-				fileName = fileName.trim();
-				const encodedPath = encodeURI(fileName);
-				return `![${altText}](${encodedPath})`;
-			},
+		return convertWikiLinksCore(
+			markdown,
+			sourcePath,
+			this.resolveNoteLink.bind(this),
 		);
-
-		// 3. 处理笔记链接 [[...]]
-		const wikiLinkRegex = /\[\[([^\]]+?)\]\]/g;
-		protectedMd = protectedMd.replace(
-			wikiLinkRegex,
-			(_match: string, content: string) => {
-				let linkpath = content;
-				let displayText = content;
-
-				// 解析别名 [[note|alias]]
-				if (content.includes("|")) {
-					const parts = content.split("|");
-					linkpath = parts[0] ?? "";
-					displayText = parts.slice(1).join("|");
-				}
-
-				// 解析标题 [[note#heading]]
-				if (linkpath.includes("#")) {
-					const hashIdx = linkpath.indexOf("#");
-					linkpath = linkpath.slice(0, hashIdx);
-					// 如果没有别名，使用 heading 作为显示文本
-					if (!content.includes("|")) {
-						displayText = content.slice(content.indexOf("#") + 1);
-					}
-				}
-
-				linkpath = linkpath.trim();
-				displayText = displayText.trim();
-
-				// 如果 linkpath 为空（如 [[#heading]]），跳过
-				if (!linkpath) return `[${displayText}]`;
-
-				// 查找目标笔记的 link-wechat-mp
-				const wechatUrl = this.resolveNoteLink(linkpath, sourcePath);
-
-				if (wechatUrl) {
-					// 有微信链接：生成标准 markdown 链接
-					return `[${displayText}](${wechatUrl})`;
-				} else {
-					// 无微信链接：生成带样式的 span
-					return `<span class="wechat-note-link">${displayText}</span>`;
-				}
-			},
-		);
-
-		// 4. 还原代码块
-		for (let i = 0; i < codeBlocks.length; i++) {
-			const block = codeBlocks[i];
-			if (block !== undefined) {
-				protectedMd = protectedMd.replace(
-					`\uE000CODE${i}\uE000`,
-					block,
-				);
-			}
-		}
-
-		return protectedMd;
 	}
 
 	/** Render LaTeX to one MathJax SVG; CJK text stays as SVG text with inherited font. */
@@ -1046,53 +899,14 @@ ${CALLOUT_FALLBACK_CSS}`;
 		return renderLatexFallback(formula, displayMode);
 	}
 
-	// 修复：防止加粗文字和冒号被换行分开
+	// 保留旧的类方法入口，实际逻辑位于无 Obsidian 依赖的核心模块。
 	preventBreakAfterStrong(html: string): string {
-		let result = html;
-
-		// 针对用户提供的具体情况：</strong> 后面跟着 <section> 或其他标签，标签内有冒号
-		// 在 </strong> 和下一个标签之间插入零宽不换行空格
-
-		// 1. 处理 </strong> 后面直接跟 < 的情况（标签开始）
-		result = result.replace(/(<\/strong>)(<)/g, "$1\uFEFF$2");
-
-		// 2. 处理 </b> 后面直接跟 < 的情况
-		result = result.replace(/(<\/b>)(<)/g, "$1\uFEFF$2");
-
-		// 3. 处理 </span>（加粗）后面直接跟 < 的情况
-		// 在所有 </span> 后面跟 < 的地方都插入
-		result = result.replace(/(<\/span>)(<)/g, "$1\uFEFF$2");
-
-		// 4. 同时保留原来的直接跟冒号的处理
-		result = result.replace(/(<\/strong>)(\s*)([：:])/g, "$1\uFEFF$2$3");
-		result = result.replace(/(<\/b>)(\s*)([：:])/g, "$1\uFEFF$2$3");
-		result = result.replace(/(<\/span>)(\s*)([：:])/g, "$1\uFEFF$2$3");
-
-		return result;
+		return preventBreakAfterStrongCore(html);
 	}
 
 	// Replace <img> tags with text placeholders for WeChat copy (avoids base64 hang)
 	replaceImagesWithPlaceholders(html: string): string {
-		const parser = new DOMParser();
-		const doc = parser.parseFromString(html, "text/html");
-		const images = doc.getElementsByTagName("img");
-		for (let i = images.length - 1; i >= 0; i--) {
-			const img = images[i];
-			if (!img) continue;
-			const src = img.getAttribute("src") || "";
-			// Keep external HTTP images; replace local/base64 ones
-			if (src.startsWith("http")) continue;
-			const alt = img.getAttribute("alt") || "图片";
-			const placeholder = doc.createElement("p");
-			// eslint-disable-next-line obsidianmd/no-static-styles-assignment
-			placeholder.setAttribute(
-				"style",
-				"text-align:center;color:#999;font-size:14px;margin:16px 0",
-			);
-			placeholder.textContent = `【图片：${decodeURIComponent(src) || alt}】`;
-			img.replaceWith(placeholder);
-		}
-		return doc.body.innerHTML || doc.documentElement.innerHTML;
+		return replaceImagesWithPlaceholdersCore(html);
 	}
 
 	// 核心逻辑：解析 HTML，查找 img 标签，将本地路径转为 Base64
@@ -1100,53 +914,17 @@ ${CALLOUT_FALLBACK_CSS}`;
 		html: string,
 		sourcePath: string,
 	): Promise<string> {
-		const parser = new DOMParser();
-		const doc = parser.parseFromString(html, "text/html");
-
-		const images = doc.getElementsByTagName("img");
-		const promises: Promise<void>[] = [];
-
-		for (let i = 0; i < images.length; i++) {
-			const img = images[i];
-			if (!img) continue;
-
-			const src = img.getAttribute("src");
-
-			if (src) {
-				// 跳过网络图片和已经是 Base64 的图片
-				if (src.startsWith("http") || src.startsWith("data:")) {
-					continue;
-				}
-
-				const task = async () => {
-					try {
-						// 解码路径 (因为我们在 convertWikiLinks 里编码过)
-						const decodedSrc = decodeURIComponent(src);
-
-						// 使用 Obsidian API 解析文件路径
-						const file =
-							this.app.metadataCache.getFirstLinkpathDest(
-								decodedSrc,
-								sourcePath,
-							);
-
-						if (file && file instanceof TFile) {
-							const base64 = await this.readImageToBase64(file);
-							img.setAttribute("src", base64);
-						} else {
-							console.warn("未找到图片文件:", decodedSrc);
-						}
-					} catch (e) {
-						console.error("图片转换失败:", src, e);
-					}
-				};
-				promises.push(task());
+		return replaceLocalImageSources(html, async (decodedSrc) => {
+			const file = this.app.metadataCache.getFirstLinkpathDest(
+				decodedSrc,
+				sourcePath,
+			);
+			if (file && file instanceof TFile) {
+				return this.readImageToBase64(file);
 			}
-		}
-
-		// 等待所有图片处理完成
-		await Promise.all(promises);
-		return doc.body.innerHTML || doc.documentElement.innerHTML;
+			console.warn("未找到图片文件:", decodedSrc);
+			return null;
+		});
 	}
 
 	// 解析 Obsidian Callout 语法（例如：> [!warning] 标题）

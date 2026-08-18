@@ -6,39 +6,7 @@
  * MathJax SVG rendering, <use> inlining.
  */
 import { describe, it, expect } from 'vitest';
-
-// ── LaTeX extraction regex (mirrors main.ts) ──
-function extractLatex(md: string): { formula: string; displayMode: boolean }[] {
-	const results: { formula: string; displayMode: boolean }[] = [];
-
-	// Step 1: Extract $$...$$ (display mode)
-	let remaining = md.replace(/\$\$([\s\S]+?)\$\$/g, (_m, f: string) => {
-		results.push({ formula: f.trim(), displayMode: true });
-		return `__LATEX_PH_${results.length - 1}__`;
-	});
-
-	// Step 2: Extract $...$ (inline mode)
-	remaining.replace(/\$(.+?)\$/g, (_m, f: string) => {
-		results.push({ formula: f.trim(), displayMode: false });
-		return `__LATEX_PH_${results.length - 1}__`;
-	});
-
-	return results;
-}
-
-// ── mdUnescape (mirrors main.ts) ──
-function mdUnescape(text: string): string {
-	const escapes: [string, string][] = [
-		['\\\\', '\\'],
-		['\\_', '_'],
-		['\\*', '*'],
-	];
-	let result = text;
-	for (const [from] of escapes) {
-		result = result.split(from).join('__PH__');
-	}
-	return result;
-}
+import { extractLatex } from '../src/markdown-core';
 
 describe('LaTeX extraction', () => {
 	it('extracts simple inline formula', () => {
@@ -75,26 +43,12 @@ describe('LaTeX extraction', () => {
 	});
 });
 
-describe('mdUnescape vs LaTeX interaction', () => {
-	it('mdUnescape destroys double backslash in LaTeX formulas', () => {
-		// This test documents the CURRENT BUG:
-		// mdUnescape runs BEFORE LaTeX extraction, turning \\ into placeholders
-		const md = '$$\\begin{matrix}1 & 2\\\\3 & 4\\end{matrix}$$';
-		const unescaped = mdUnescape(md);
-
-		// After mdUnescape, the formula's \\ is replaced
-		expect(unescaped).not.toContain('\\\\');
-		expect(unescaped).toContain('__PH__');
-	});
-
-	it('LaTeX extraction BEFORE mdUnescape preserves backslashes', () => {
-		// This test shows the FIX: extract LaTeX first, then mdUnescape
+describe('LaTeX extraction integration', () => {
+	it('extracts before Markdown escape handling and preserves backslashes', () => {
 		const md = '$$\\begin{matrix}1 & 2\\\\3 & 4\\end{matrix}$$';
 
-		// Extract first
 		const results = extractLatex(md);
 		expect(results[0]!.formula).toContain('\\\\');
-		expect(results[0]!.formula).not.toContain('__PH__');
 	});
 });
 

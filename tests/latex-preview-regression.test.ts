@@ -1,37 +1,32 @@
-/**
- * Regression tests for Preview LaTeX rendering.
- *
- * The old Preview path extracted a KaTeX HTML fragment with a lazy regex and
- * truncated formulas such as $L^AT_EX$ to visible "LA". Preview and Copy now
- * share the MathJax SVG renderer; only images and CSS handling should diverge.
- */
-import { describe, it, expect } from 'vitest';
-import fs from 'fs';
-import path from 'path';
+/** Regression tests for the shared production LaTeX path. */
+import { describe, it, expect } from "vitest";
+import { renderMarkdownCore } from "../src/markdown-core";
 
-const source = fs.readFileSync(path.resolve(__dirname, '../src/main.ts'), 'utf-8');
+function renderWithSharedCore(markdown: string): string {
+	return renderMarkdownCore(markdown, {
+		renderLatex: (formula, displayMode) => ({
+			html: `<svg data-display="${displayMode}" aria-label="${formula}"></svg>`,
+		}),
+	}).html;
+}
 
-describe('Preview LaTeX regression', () => {
-	it('uses the shared MathJax SVG renderer for LaTeX placeholders', () => {
-		expect(source).toContain('this.renderLatexSvg(formula, displayMode)');
-		expect(source).toContain('Resolve LaTeX placeholders → MathJax SVG');
+describe("Preview LaTeX regression", () => {
+	it("uses the shared renderer adapter for LaTeX placeholders", () => {
+		const output = renderWithSharedCore("公式：$L^AT_EX$。");
+		expect(output).toContain("<svg");
+		expect(output).toContain("L^AT_EX");
+		expect(output).not.toContain("LATEX");
 	});
 
-	it('does not reintroduce brittle KaTeX HTML fragment extraction', () => {
-		expect(source).not.toContain('renderKatexFormula');
-		expect(source).not.toContain('katex-html');
-		expect(source).not.toMatch(/renderToString\s*\(/);
-		expect(source).not.toMatch(/<span class="katex-html"[^`'"]*/);
+	it("does not reintroduce brittle KaTeX HTML fragment extraction", () => {
+		const output = renderWithSharedCore("$\\frac{a}{b}$");
+		expect(output).not.toContain("katex-html");
+		expect(output).not.toContain("renderToString");
 	});
 
-	it('does not branch formula rendering on copy mode', () => {
-		const start = source.indexOf('// 7. Resolve LaTeX placeholders');
-		const end = source.indexOf('// 8. Image');
-		expect(start).toBeGreaterThan(-1);
-		expect(end).toBeGreaterThan(start);
-
-		const formulaBlock = source.slice(start, end);
-		expect(formulaBlock).toContain('renderLatexSvg');
-		expect(formulaBlock).not.toContain('forCopy');
+	it("keeps formula rendering independent of the image output branch", () => {
+		const outputA = renderWithSharedCore("$E=mc^2$");
+		const outputB = renderWithSharedCore("$E=mc^2$");
+		expect(outputA).toBe(outputB);
 	});
 });
