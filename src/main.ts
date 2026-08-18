@@ -477,12 +477,95 @@ export default class WechatCopyPlugin extends Plugin {
 			},
 		});
 
+		// Commands that operate on the active file also work in Reading view.
+		this.addCommand({
+			id: "preview-current-note",
+			name: "Preview current note",
+			checkCallback: (checking: boolean) => {
+				const file = this.getActiveMarkdownFile();
+				if (!file) return false;
+				if (!checking) void this.processFile(file, "preview");
+				return true;
+			},
+		});
+
+		this.addCommand({
+			id: "copy-current-note",
+			name: "Copy current note to WeChat",
+			checkCallback: (checking: boolean) => {
+				const file = this.getActiveMarkdownFile();
+				if (!file) return false;
+				if (!checking) void this.processFile(file, "copy");
+				return true;
+			},
+		});
+
+		this.addCommand({
+			id: "copy-selection-to-wechat",
+			name: "Copy selection to WeChat",
+			editorCheckCallback: (
+				checking: boolean,
+				editor: Editor,
+				view: MarkdownView,
+			) => {
+				const selection = editor.getSelection();
+				if (!view.file || !selection.trim()) return false;
+				if (!checking) {
+					void this.processAndCopy(selection, view.file.path);
+				}
+				return true;
+			},
+		});
+
+		this.registerEvent(
+			this.app.workspace.on("file-menu", (menu, file) => {
+				if (!(file instanceof TFile) || file.extension.toLowerCase() !== "md") {
+					return;
+				}
+				menu.addItem((item) =>
+					item
+						.setTitle("Preview current note")
+						.setIcon("globe")
+						.onClick(() => void this.processFile(file, "preview")),
+				);
+				menu.addItem((item) =>
+					item
+						.setTitle("Copy current note to WeChat")
+						.setIcon("clipboard")
+						.onClick(() => void this.processFile(file, "copy")),
+				);
+			}),
+		);
+
 		this.addSettingTab(new WechatSettingTab(this.app, this));
 	}
 
 	onunload() {
 		if (this._previewServer) {
 			this.closePreviewServer(this._previewServer);
+		}
+	}
+
+	private getActiveMarkdownFile(): TFile | null {
+		const file = this.app.workspace.getActiveFile();
+		return file && file.extension.toLowerCase() === "md" ? file : null;
+	}
+
+	private async processFile(
+		file: TFile,
+		mode: "preview" | "copy",
+	): Promise<void> {
+		try {
+			const markdown = await this.app.vault.read(file);
+			if (mode === "preview") {
+				await this.processAndPreview(markdown, file.path);
+			} else {
+				await this.processAndCopy(markdown, file.path);
+			}
+		} catch (error) {
+			console.error(error);
+			const message = error instanceof Error ? error.message : String(error);
+			new Notice("❌ 读取笔记失败：" + message);
 		}
 	}
 

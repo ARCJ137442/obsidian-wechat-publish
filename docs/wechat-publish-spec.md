@@ -11,7 +11,7 @@ Obsidian MD → obsidian-wechat-publish 插件 → 微信格式化 HTML → 粘�
 - **插件**: `ARCJ137442/obsidian-wechat-publish` v1.2.0 (forked from `tinyking/obsidian-wechat-publish`, MIT)
 - **核心技术**: markdown-it 渲染 + MathJax SVG 公式 + juice CSS 内联
 - **安装路径**: `.obsidian/plugins/obsidian-wechat-publish/`
-- **触发方式**: `Ctrl/Cmd+P` → `Copy to WeChat`
+- **触发方式**: `Ctrl/Cmd+P` → `Copy to WeChat`；也支持当前笔记、选区和文件菜单入口
 
 ## 排版风格: 简约日记风
 
@@ -64,7 +64,8 @@ Obsidian MD → obsidian-wechat-publish 插件 → 微信格式化 HTML → 粘�
 ## 发布流程（当前: 2步）
 
 1. Obsidian 打开目标 `.md` 文件
-2. `Ctrl+P` → `Copy to WeChat` → 在公众号后台 `Ctrl+V` 粘贴
+2. 使用 `Copy to WeChat`、`Copy current note to WeChat`、选区复制或文件右键菜单
+3. 在公众号后台 `Ctrl+V` 粘贴
 
 ### 后续优化方向
 
