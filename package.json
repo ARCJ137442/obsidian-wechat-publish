@@ -7,6 +7,8 @@
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node scripts/build-mathjax-svg.mjs && node esbuild.config.mjs production",
 		"lint": "eslint ./src/",
+		"test": "vitest run",
+		"verify:version": "node scripts/verify-version.mjs",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"deploy": "node scripts/deploy.js"
 	},

@@ -1,6 +1,6 @@
 # 微信公众号发布插件迭代路线图
 
-> 状态：计划中
+> 状态：阶段一实施中
 > 建立日期：2026-08-18
 > 当前基线：v1.1.0
 
@@ -39,29 +39,29 @@
 
 ### 1.1 明确桌面端支持范围
 
-- [ ] 将 `manifest.json` 的 `isDesktopOnly` 改为 `true`。
-- [ ] README 和安装说明明确当前依赖桌面端 Node/Electron 能力。
+- [x] 将 `manifest.json` 的 `isDesktopOnly` 改为 `true`。
+- [x] README 和安装说明明确当前依赖桌面端 Node/Electron 能力。
 - [ ] 后续如果确有移动端需求，另行设计移动端剪贴板和预览适配，不在本阶段混入。
 
 原因：当前实现使用 `fs`、`http`、Electron `shell` 和 Electron 原生剪贴板；继续声明移动端支持会造成安装后才暴露失败。
 
 ### 1.2 统一版本并建立 Release 产物
 
-- [ ] 将 `package.json`、`manifest.json`、README badge、发布规范和 `versions.json` 统一为 `1.1.0`。
-- [ ] 增加 GitHub Actions Release workflow。
-- [ ] 以 tag 触发构建、测试和 lint。
-- [ ] 将 `main.js`、`manifest.json`、`styles.css`、`mathjax-svg.js` 打包为可直接安装的 zip 并上传到 GitHub Release。
-- [ ] README 的手动安装入口改为指向 Releases。
-- [ ] 为 Release 增加产物文件清单和版本一致性检查。
+- [x] 将 `package.json`、`manifest.json`、README badge、发布规范和 `versions.json` 统一为 `1.1.0`。
+- [x] 增加 GitHub Actions Release workflow。
+- [x] 以 tag 触发构建、测试和 lint。
+- [x] 将 `main.js`、`manifest.json`、`styles.css`、`mathjax-svg.js` 打包为可直接安装的 zip 并上传到 GitHub Release。
+- [x] README 的手动安装入口改为指向 Releases。
+- [x] 为 Release 增加产物文件清单和版本一致性检查。
 
 原因：源码仓库忽略编译产物，但当前又缺少 Release 上传流程；用户按照 README 无法直接获得 `main.js`。
 
 ### 1.3 将测试纳入 CI
 
-- [ ] 在 `package.json` 增加 `npm test`，执行 `vitest run`。
-- [ ] GitHub Actions 在 build、lint 之外执行 `npm test`。
+- [x] 在 `package.json` 增加 `npm test`，执行 `vitest run`。
+- [x] GitHub Actions 在 build、lint 之外执行 `npm test`。
 - [ ] 保留 Node 20/22 矩阵，确认测试不依赖本地 Vault、浏览器或未提交文件。
-- [ ] 发布 workflow 复用同一套检查命令。
+- [x] 发布 workflow 复用同一套检查命令。
 
 验收标准：Pull Request 和 tag 构建都必须同时通过 build、lint、test；失败时不能上传 Release 产物。
 
