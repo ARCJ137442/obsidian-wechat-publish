@@ -39,6 +39,12 @@ type LatexFormula = {
 	displayMode: boolean;
 };
 
+type LatexExtraction = {
+	markdown: string;
+	formulas: Map<string, LatexFormula>;
+	exclusions: Map<string, string>;
+};
+
 const MARKDOWN_ESCAPES: [string, string][] = [
 	["\\\\", "\\"],
 	["\\_", "_"],
@@ -58,47 +64,188 @@ const MARKDOWN_ESCAPES: [string, string][] = [
 	["\\~", "~"],
 ];
 
-/** Extract display and inline formulas before Markdown escape handling. */
-export function extractLatex(markdown: string): LatexFormula[] {
-	const formulas: LatexFormula[] = [];
-	markdown
-		.replace(/\$\$([\s\S]+?)\$\$/g, (_match, formula: string) => {
-			formulas.push({ formula: formula.trim(), displayMode: true });
-			return `\uE000LATEX${formulas.length - 1}\uE000`;
-		})
-		.replace(/\$(.+?)\$/g, (_match, formula: string) => {
-			formulas.push({ formula: formula.trim(), displayMode: false });
-			return `\uE000LATEX${formulas.length - 1}\uE000`;
-		});
-	return formulas;
+const LATEX_PLACEHOLDER_PREFIX = "\uE000LATEX";
+const LATEX_PLACEHOLDER_SUFFIX = "\uE000";
+const LATEX_EXCLUSION_PREFIX = "\uE001LATEX_EXCLUSION";
+const LATEX_EXCLUSION_SUFFIX = "\uE002";
+
+function isEscaped(text: string, index: number): boolean {
+	let backslashCount = 0;
+	for (let i = index - 1; i >= 0 && text[i] === "\\"; i--) {
+		backslashCount++;
+	}
+	return backslashCount % 2 === 1;
 }
 
-function extractLatexWithPlaceholders(markdown: string): {
+function protectLatexExclusions(markdown: string): {
 	markdown: string;
-	formulas: Map<string, LatexFormula>;
+	exclusions: Map<string, string>;
 } {
+	const exclusions = new Map<string, string>();
+	let exclusionIndex = 0;
+
+	const protect = (text: string): string => {
+		const placeholder = `${LATEX_EXCLUSION_PREFIX}${exclusionIndex}${LATEX_EXCLUSION_SUFFIX}`;
+		exclusionIndex++;
+		exclusions.set(placeholder, text);
+		return placeholder;
+	};
+
+	// Fenced blocks are protected first, so backticks and dollar signs inside
+	// them cannot be mistaken for Markdown inline syntax or formulas.
+	let protectedMarkdown = markdown.replace(
+		/^ {0,3}(`{3,}|~{3,})[^\n]*\n[\s\S]*?^ {0,3}\1[ \t]*(?:\n|$)/gm,
+		(match) => protect(match),
+	);
+
+	// Raw paired HTML is kept as one unit. This covers dollar signs in both
+	// attributes and text while retaining MarkdownIt's existing HTML support.
+	protectedMarkdown = protectedMarkdown.replace(
+		/<([A-Za-z][\w:-]*)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,
+		(match) => protect(match),
+	);
+	protectedMarkdown = protectedMarkdown.replace(
+		/<!--[\s\S]*?-->|<\/?[A-Za-z][^>]*>/g,
+		(match) => protect(match),
+	);
+
+	// Protect inline code spans after fenced blocks have been removed. The
+	// simple one-backtick form is the common case; the repeated-backtick form
+	// is handled as well by matching the same delimiter on both sides.
+	protectedMarkdown = protectedMarkdown.replace(
+		/(^|[^`])(`+)(?!`)([\s\S]*?)\2(?!`)/g,
+		(_match, prefix: string, delimiter: string, content: string) =>
+			`${prefix}${protect(`${delimiter}${content}${delimiter}`)}`,
+	);
+
+	return { markdown: protectedMarkdown, exclusions };
+}
+
+function restoreLatexExclusions(
+	text: string,
+	exclusions: Map<string, string>,
+): string {
+	let result = text;
+	for (let pass = 0; pass <= exclusions.size; pass++) {
+		const previous = result;
+		for (const [placeholder, original] of exclusions) {
+			result = result.split(placeholder).join(original);
+		}
+		if (result === previous) break;
+	}
+	return result;
+}
+
+function findClosingDollar(
+	text: string,
+	start: number,
+	delimiterLength: number,
+): number {
+	for (let index = start; index < text.length; index++) {
+		if (text[index] !== "$" || isEscaped(text, index)) continue;
+		if (delimiterLength === 2) {
+			if (text.slice(index, index + 2) === "$$") return index;
+			continue;
+		}
+		if (text[index - 1] === "$" || text[index + 1] === "$") continue;
+		if (/\s/.test(text[index - 1] ?? "")) continue;
+		return index;
+	}
+	return -1;
+}
+
+function isLikelyInlineFormulaStart(text: string, index: number): boolean {
+	const next = text[index + 1] ?? "";
+	// A digit immediately after $ is overwhelmingly a currency amount in
+	// prose. Requiring a non-space, non-digit start also avoids pairing two
+	// amounts such as "$100 ... $200" as one formula.
+	if (next === "" || /\s/.test(next)) return false;
+	if (!/\d/.test(next)) return true;
+
+	// Numeric formulas remain valid when their body contains an unmistakable
+	// mathematical cue, such as a LaTeX command, operator, exponent, or
+	// variable. Plain "$100 ... $200" therefore stays ordinary prose.
+	const closingIndex = findClosingDollar(text, index + 1, 1);
+	if (closingIndex < 0) return false;
+	const body = text.slice(index + 1, closingIndex);
+	return /\\[A-Za-z]|[=^_{}+\-*/]|[A-Za-z]/.test(body);
+}
+
+function extractLatexWithPlaceholders(markdown: string): LatexExtraction {
+	const { markdown: protectedMarkdown, exclusions } =
+		protectLatexExclusions(markdown);
 	const formulas = new Map<string, LatexFormula>();
 	let formulaIndex = 0;
-	const withPlaceholders = markdown
-		.replace(/\$\$([\s\S]+?)\$\$/g, (_match, formula: string) => {
-			const placeholder = `\uE000LATEX${formulaIndex}\uE000`;
-			formulas.set(placeholder, {
-				formula: formula.trim(),
-				displayMode: true,
-			});
-			formulaIndex++;
-			return placeholder;
-		})
-		.replace(/\$(.+?)\$/g, (_match, formula: string) => {
-			const placeholder = `\uE000LATEX${formulaIndex}\uE000`;
-			formulas.set(placeholder, {
-				formula: formula.trim(),
-				displayMode: false,
-			});
-			formulaIndex++;
-			return placeholder;
-		});
-	return { markdown: withPlaceholders, formulas };
+	let result = "";
+
+	const addFormula = (
+		formula: string,
+		displayMode: boolean,
+	): string => {
+		const placeholder = `${LATEX_PLACEHOLDER_PREFIX}${formulaIndex}${LATEX_PLACEHOLDER_SUFFIX}`;
+		formulas.set(placeholder, { formula: formula.trim(), displayMode });
+		formulaIndex++;
+		return placeholder;
+	};
+
+	for (let index = 0; index < protectedMarkdown.length; ) {
+		if (
+			protectedMarkdown[index] !== "$" ||
+			isEscaped(protectedMarkdown, index)
+		) {
+			result += protectedMarkdown[index] ?? "";
+			index++;
+			continue;
+		}
+
+		const isDisplay = protectedMarkdown.slice(index, index + 2) === "$$";
+		if (
+			!isDisplay &&
+			/\d/.test(protectedMarkdown[index - 1] ?? "")
+		) {
+			// When a numeric "$1$"-style fragment was rejected as prose, its
+			// second dollar must not become a fresh formula opener and consume
+			// text until a later dollar sign.
+			result += "$";
+			index++;
+			continue;
+		}
+		if (!isDisplay && !isLikelyInlineFormulaStart(protectedMarkdown, index)) {
+			result += "$";
+			index++;
+			continue;
+		}
+
+		const delimiterLength = isDisplay ? 2 : 1;
+		const contentStart = index + delimiterLength;
+		const closingIndex = findClosingDollar(
+			protectedMarkdown,
+			contentStart,
+			delimiterLength,
+		);
+		if (closingIndex < 0) {
+			result += protectedMarkdown[index] ?? "";
+			index++;
+			continue;
+		}
+
+		const formula = protectedMarkdown.slice(contentStart, closingIndex).trim();
+		if (!formula) {
+			result += protectedMarkdown.slice(index, closingIndex + delimiterLength);
+			index = closingIndex + delimiterLength;
+			continue;
+		}
+
+		result += addFormula(formula, isDisplay);
+		index = closingIndex + delimiterLength;
+	}
+
+	return { markdown: result, formulas, exclusions };
+}
+
+/** Extract display and inline formulas before Markdown escape handling. */
+export function extractLatex(markdown: string): LatexFormula[] {
+	return Array.from(extractLatexWithPlaceholders(markdown).formulas.values());
 }
 
 function unescapeMarkdown(text: string): {
@@ -160,7 +307,11 @@ export function renderMarkdownCore(
 			)
 		: markdown;
 
-	const { markdown: withLatexPlaceholders, formulas } =
+	const {
+		markdown: withLatexPlaceholders,
+		formulas,
+		exclusions,
+	} =
 		extractLatexWithPlaceholders(normalized);
 	const { text: unescaped, placeholders } = unescapeMarkdown(
 		withLatexPlaceholders,
@@ -168,7 +319,9 @@ export function renderMarkdownCore(
 	const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
 	md.use(markdownItMark as PluginSimple);
 
-	const preprocessed = preprocessCallouts(unescaped);
+	const preprocessed = preprocessCallouts(
+		restoreLatexExclusions(unescaped, exclusions),
+	);
 	let html = postprocessCallouts(md.render(preprocessed));
 	html = restoreEscapes(html, placeholders);
 	html = preventBreakAfterStrong(html);

@@ -1,6 +1,6 @@
 # 微信公众号发布插件迭代路线图
 
-> 状态：阶段 3.1 完成，准备阶段验收
+> 状态：阶段 3.2 完成，准备阶段 3.3 验收
 > 建立日期：2026-08-18
 > 当前基线：v1.2.0
 
@@ -109,10 +109,12 @@
 
 ### 3.2 谨慎修复 LaTeX 提取顺序
 
-- [ ] 先保护 fenced code、inline code 和需要保留的 HTML，再识别 LaTeX。
-- [ ] 明确处理 `\\$`、货币符号、跨行公式和连续公式。
-- [ ] 增加代码块中的 `$not a formula$`、转义美元符号和复杂公式回归测试。
-- [ ] 保持 MathJax SVG 为唯一正常公式输出；失败时返回诊断信息，而不是静默伪装成成功。
+- [x] 先保护 fenced code、inline code 和需要保留的 HTML，再识别 LaTeX。
+- [x] 明确处理 `\\$`、货币符号、跨行公式和连续公式。
+- [x] 增加代码块中的 `$not a formula$`、转义美元符号和复杂公式回归测试。
+- [x] 保持 MathJax SVG 为唯一正常公式输出；失败时返回诊断信息，而不是静默伪装成成功。
+
+实施结果：新增 `tests/latex-input-boundaries.test.ts`，以真实 `renderMarkdownCore()` 覆盖 fenced/inline code、HTML、货币金额、转义美元符号、数字美元片段、跨行 display 和连续 inline 公式；实现采用保护片段 + 扫描提取，未扩大到 Markdown 解析器重写。
 
 注意：这一项不做大范围正则替换，必须先建立 fixture，再逐步改动并比较 HTML 输出。
 
