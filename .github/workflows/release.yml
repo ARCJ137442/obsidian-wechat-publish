@@ -39,7 +39,8 @@ jobs:
             - run: npm run build
             - run: npm run lint
             - run: npm test
-            - name: Generate release notes
+            # The generator uses docs/releases/<tag>.md when present and falls back to commit history otherwise.
+            - name: Generate release notes (document first, commits fallback)
               run: npm run release:notes -- "${{ steps.release.outputs.tag }}" release-notes.md
             - name: Package plugin files
               run: zip -j "obsidian-wechat-publish-${{ steps.release.outputs.version }}.zip" main.js manifest.json styles.css mathjax-svg.js
