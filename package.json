@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-wechat-publish",
-	"version": "1.3.1",
+	"version": "1.3.2",
 	"description": "One-click copy markdown to WeChat Official Account",
 	"main": "main.js",
 	"scripts": {

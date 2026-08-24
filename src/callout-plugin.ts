@@ -475,6 +475,11 @@ export function setupCalloutData(
 	_activeAliases = aliases;
 }
 
+export function resetCalloutData(): void {
+	_activeThemes = CALLOUT_THEMES;
+	_activeAliases = CALLOUT_ALIASES;
+}
+
 /** 获取当前生效的 themes */
 export function getActiveThemes(): typeof CALLOUT_THEMES {
 	return _activeThemes;

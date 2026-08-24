@@ -7,7 +7,7 @@
  * - buildMergedCalloutData 执行后：custom 类型 alias → 自己，theme 有颜色定义
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { buildMergedCalloutData, getActiveAliases, getActiveThemes, setupCalloutData } from '../src/callout-plugin';
+import { buildMergedCalloutData, getActiveAliases, getActiveThemes, resetCalloutData, setupCalloutData } from '../src/callout-plugin';
 import { CALLOUT_MANAGER_FIXTURE as VAULT_CM } from './fixtures/callout-manager';
 
 describe('内置类型 alias（默认状态）', () => {
@@ -67,5 +67,18 @@ describe('buildMergedCalloutData 后：custom 类型动态注册', () => {
     it('内置类型未被 custom JSON 覆盖时保持原样', () => {
         expect(getActiveThemes()['note']).toBeDefined();
         expect(getActiveThemes()['note'].border).toBeDefined();
+    });
+});
+
+describe('Callout 状态复位', () => {
+    it('复位后不会泄漏上一次联动读取的 custom 类型', () => {
+        const { themes, aliases } = buildMergedCalloutData(VAULT_CM);
+        setupCalloutData(themes, aliases);
+        expect(getActiveThemes()['branch']).toBeDefined();
+
+        resetCalloutData();
+
+        expect(getActiveThemes()['branch']).toBeUndefined();
+        expect(getActiveThemes()['note']).toBeDefined();
     });
 });

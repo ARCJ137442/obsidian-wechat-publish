@@ -30,6 +30,7 @@ import {
 	buildMergedCalloutData,
 	setupCalloutData,
 	getActiveThemes,
+	resetCalloutData,
 	CalloutManagerJson,
 } from "./callout-plugin";
 import {
@@ -43,6 +44,15 @@ import {
 	countHtmlParagraphs,
 	countImagePlaceholders,
 } from "./copy-notice";
+import {
+	binaryToBase64,
+	getDesktopHttp,
+	getElectronClipboard,
+	getElectronShell,
+	getVaultBasePath,
+	loadOptionalDesktopModule,
+	readOptionalDesktopText,
+} from "./desktop-runtime";
 import {
 	clearPreviewTimeout,
 	renewPreviewTimeout,
@@ -369,6 +379,7 @@ export default class WechatCopyPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
+		resetCalloutData();
 		await this.loadCalloutManagerThemes();
 
 		// Command 1: Preview in Browser
@@ -460,6 +471,7 @@ export default class WechatCopyPlugin extends Plugin {
 		if (this._previewServer) {
 			this.closePreviewServer(this._previewServer);
 		}
+		resetCalloutData();
 	}
 
 	private getActiveMarkdownFile(): TFile | null {
@@ -488,11 +500,10 @@ export default class WechatCopyPlugin extends Plugin {
 	/** 读取 callout-manager 配置并合并到渲染管道（联动 callout-manager） */
 	async loadCalloutManagerThemes(): Promise<void> {
 		console.debug("[wechat-publish] loadCalloutManagerThemes: 开始执行");
+		resetCalloutData();
 		try {
-			const vaultBase =
-				((this.app.vault.adapter as any).getBasePath?.() as
-					| string
-					| undefined) ?? this.app.vault.adapter.getResourcePath("/");
+			const vaultBase = getVaultBasePath(this.app.vault.adapter);
+			if (!vaultBase) return;
 			const cmPath = `${vaultBase}/.obsidian/plugins/callout-manager/data.json`;
 			console.debug(
 				"[wechat-publish] loadCalloutManagerThemes: vault 根目录:",
@@ -503,16 +514,14 @@ export default class WechatCopyPlugin extends Plugin {
 				cmPath,
 			);
 
-			// 使用 Node.js fs 读取（Obsidian 插件上下文可用 require('fs')）
-			const fs = require("fs") as typeof import("fs");
-			if (!fs.existsSync(cmPath)) {
+			const content = readOptionalDesktopText(cmPath);
+			if (content === undefined) {
 				console.debug(
 					"[wechat-publish] loadCalloutManagerThemes: 文件不存在，跳过（这是正常的如果未安装 callout-manager）",
 				);
 				return;
 			}
 
-			const content = fs.readFileSync(cmPath, "utf-8");
 			console.debug(
 				"[wechat-publish] loadCalloutManagerThemes: 文件读取成功，长度:",
 				content.length,
@@ -549,6 +558,7 @@ export default class WechatCopyPlugin extends Plugin {
 					`• 被覆盖的内置类型：${overridden.length} 种（${overridden.join(", ") || "无"}）`,
 			);
 		} catch (e: unknown) {
+			resetCalloutData();
 			console.error(
 				"[wechat-publish] loadCalloutManagerThemes: 错误:",
 				e instanceof Error ? e.message : String(e),
@@ -767,7 +777,7 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 </script>
 </body></html>`;
 			// Serve via local HTTP to avoid file:// CORS issues with inline SVG
-			const http = require("http") as typeof import("http");
+			const http = getDesktopHttp();
 			const server = http.createServer(
 				(
 					_req: import("http").IncomingMessage,
@@ -802,10 +812,7 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 			const addr = server.address() as { port: number };
 			const url = `http://127.0.0.1:${addr.port}`;
 
-			const { shell } = require("electron") as {
-				shell: { openExternal: (url: string) => Promise<void> };
-			};
-			await shell.openExternal(url);
+			await getElectronShell().openExternal(url);
 
 			// Track & auto-close: keep alive 30s after the latest page request,
 			// close on the next preview or plugin unload.
@@ -932,12 +939,12 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 	renderLatexSvg(formula: string, displayMode: boolean): string {
 		if (!mathjaxSvgModule) {
 			try {
-				const vaultBase = (this.app.vault.adapter as any).getBasePath?.() as string | undefined;
+				const vaultBase = getVaultBasePath(this.app.vault.adapter);
 				if (vaultBase) {
-					const fs = require('fs') as typeof import('fs');
 					const modulePath = vaultBase + '/' + this.app.vault.configDir + '/plugins/obsidian-wechat-publish/mathjax-svg.js';
-					if (fs.existsSync(modulePath)) {
-						mathjaxSvgModule = require(modulePath);
+					const module = loadOptionalDesktopModule<typeof mathjaxSvgModule>(modulePath);
+					if (module) {
+						mathjaxSvgModule = module;
 						console.debug('[wechat-publish] mathjax-svg.js loaded successfully');
 					}
 				}
@@ -986,15 +993,7 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 	// 解析 Obsidian Callout 语法（例如：> [!warning] 标题）
 	async readImageToBase64(file: TFile): Promise<string> {
 		const buffer = await this.app.vault.readBinary(file);
-		const arr = new Uint8Array(buffer);
-
-		// 简单的二进制转 Base64 字符串
-		let binary = "";
-		const len = arr.byteLength;
-		for (let i = 0; i < len; i++) {
-			binary += String.fromCharCode(arr[i]!);
-		}
-		const base64 = window.btoa(binary);
+		const base64 = binaryToBase64(buffer);
 
 		// 根据扩展名判断 mime type
 		const ext = file.extension.toLowerCase();
@@ -1016,12 +1015,7 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 		plainText: string,
 		noticeMessage: string,
 	) {
-		const { clipboard } = require("electron") as {
-			clipboard: {
-				write: (data: { text: string; html: string }) => void;
-			};
-		};
-		clipboard.write({
+		getElectronClipboard().write({
 			text: plainText,
 			html: html,
 		});

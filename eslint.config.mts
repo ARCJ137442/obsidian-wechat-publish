@@ -65,6 +65,21 @@ export default tseslint.config(
 		},
 	},
 	{
+		files: ["src/desktop-runtime.ts"],
+		languageOptions: {
+			globals: {
+				...globals.node,
+				...globals.browser,
+			},
+		},
+		rules: {
+			// Desktop-only adapter: synchronous Node/Electron access is intentional at this boundary.
+			"import/no-nodejs-modules": "off",
+			"@typescript-eslint/no-require-imports": "off",
+			"no-undef": "off",
+		},
+	},
+	{
 		files: ["src/image-output.ts"],
 		rules: {
 			// This module serializes inline styles into exported WeChat HTML, not Obsidian UI.
