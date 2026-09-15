@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { binaryToBase64, getVaultBasePath } from "../src/desktop-runtime";
+
+vi.mock("obsidian", () => ({
+	Platform: { isDesktop: true },
+}));
 
 describe("desktop runtime adapter", () => {
 	it("keeps vault path resolution at the desktop boundary", () => {

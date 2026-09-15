@@ -1,8 +1,10 @@
 import {
 	App,
 	Editor,
+	Modal,
 	MarkdownView,
 	Notice,
+	Platform,
 	Plugin,
 	PluginSettingTab,
 	Setting,
@@ -53,6 +55,17 @@ import {
 	loadOptionalDesktopModule,
 	readOptionalDesktopText,
 } from "./desktop-runtime";
+import {
+	ClipboardRuntimeError,
+	getBrowserClipboard,
+	writePlainTextClipboard,
+	writeRichClipboard,
+} from "./clipboard-runtime";
+import {
+	buildCopyStatistics,
+	formatByteSize,
+	type CopyStatistics,
+} from "./copy-statistics";
 import {
 	clearPreviewTimeout,
 	renewPreviewTimeout,
@@ -362,10 +375,12 @@ function generateDarkModeCustomCalloutCSS(): string {
 
 interface WechatPluginSettings {
 	customCSS: string;
+	previewBeforeCopy: boolean;
 }
 
 const DEFAULT_SETTINGS: WechatPluginSettings = {
 	customCSS: DEFAULT_CSS,
+	previewBeforeCopy: false,
 };
 const PREVIEW_IDLE_TIMEOUT_MS = 30_000;
 
@@ -373,6 +388,37 @@ type ProcessedMarkdown = {
 	html: string;
 	diagnostics: MarkdownCoreDiagnostics;
 };
+
+type CopyArtifact = {
+	inlinedHtml: string;
+	plainText: string;
+	noticeMessage: string;
+	statistics: CopyStatistics;
+};
+
+const COPY_CONTENT_LABELS = {
+	rich: "排版 HTML，同时写入 text/plain 回退",
+	"html-as-text": "内联 HTML 源码，仅写入 text/plain",
+} as const;
+
+function formatClipboardSourceNotice(result: {
+	source: "system" | "browser";
+	fallback: boolean;
+}): string {
+	if (result.source !== "browser") return "";
+	return result.fallback
+		? "\n⚠️ 系统剪贴板不可用，已回退到通用浏览器剪贴板 API。"
+		: "\nℹ️ 已使用通用浏览器剪贴板 API。";
+}
+
+function formatClipboardFailure(error: unknown): string {
+	if (error instanceof ClipboardRuntimeError) {
+		const cause = error.browserError ?? error.nativeError;
+		const detail = cause instanceof Error ? `：${cause.message}` : "";
+		return error.message + detail;
+	}
+	return error instanceof Error ? error.message : String(error);
+}
 
 export default class WechatCopyPlugin extends Plugin {
 	settings: WechatPluginSettings;
@@ -382,16 +428,28 @@ export default class WechatCopyPlugin extends Plugin {
 		resetCalloutData();
 		await this.loadCalloutManagerThemes();
 
-		// Command 1: Preview in Browser
-		this.addCommand({
-			id: "preview-in-browser",
-			name: "Preview in Browser",
-			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				const markdown = editor.getValue();
-				const currentPath = view.file ? view.file.path : "";
-				await this.processAndPreview(markdown, currentPath);
-			},
-		});
+		// The plugin is mobile-compatible for copying, but preview still needs
+		// the desktop-only browser runtime. Keep the notice informational: it
+		// must never prevent the plugin from loading or commands from running.
+		if (Platform.isMobileApp || Platform.isMobile) {
+			new Notice(
+				"⚠️ 当前运行在 Obsidian 移动端：公众号发布插件已解禁，复制命令可用；预览仍仅支持桌面端。",
+				10000,
+			);
+		}
+
+		// Command 1: Preview in Browser (desktop runtime only)
+		if (Platform.isDesktop) {
+			this.addCommand({
+				id: "preview-in-browser",
+				name: "Preview in Browser",
+				editorCallback: async (editor: Editor, view: MarkdownView) => {
+					const markdown = editor.getValue();
+					const currentPath = view.file ? view.file.path : "";
+					await this.processAndPreview(markdown, currentPath);
+				},
+			});
+		}
 
 		// Command 2: Copy to WeChat
 		this.addCommand({
@@ -405,16 +463,18 @@ export default class WechatCopyPlugin extends Plugin {
 		});
 
 		// Commands that operate on the active file also work in Reading view.
-		this.addCommand({
-			id: "preview-current-note",
-			name: "Preview current note",
-			checkCallback: (checking: boolean) => {
-				const file = this.getActiveMarkdownFile();
-				if (!file) return false;
-				if (!checking) void this.processFile(file, "preview");
-				return true;
-			},
-		});
+		if (Platform.isDesktop) {
+			this.addCommand({
+				id: "preview-current-note",
+				name: "Preview current note",
+				checkCallback: (checking: boolean) => {
+					const file = this.getActiveMarkdownFile();
+					if (!file) return false;
+					if (!checking) void this.processFile(file, "preview");
+					return true;
+				},
+			});
+		}
 
 		this.addCommand({
 			id: "copy-current-note",
@@ -423,6 +483,17 @@ export default class WechatCopyPlugin extends Plugin {
 				const file = this.getActiveMarkdownFile();
 				if (!file) return false;
 				if (!checking) void this.processFile(file, "copy");
+				return true;
+			},
+		});
+
+		this.addCommand({
+			id: "copy-html-as-text",
+			name: "Copy HTML as Plain Text (复制 HTML 纯文本)",
+			checkCallback: (checking: boolean) => {
+				const file = this.getActiveMarkdownFile();
+				if (!file) return false;
+				if (!checking) void this.processFile(file, "copy-html-as-text");
 				return true;
 			},
 		});
@@ -449,17 +520,25 @@ export default class WechatCopyPlugin extends Plugin {
 				if (!(file instanceof TFile) || file.extension.toLowerCase() !== "md") {
 					return;
 				}
-				menu.addItem((item) =>
-					item
-						.setTitle("Preview current note")
-						.setIcon("globe")
-						.onClick(() => void this.processFile(file, "preview")),
-				);
+				if (Platform.isDesktop) {
+					menu.addItem((item) =>
+						item
+							.setTitle("Preview current note")
+							.setIcon("globe")
+							.onClick(() => void this.processFile(file, "preview")),
+					);
+				}
 				menu.addItem((item) =>
 					item
 						.setTitle("Copy current note to WeChat")
 						.setIcon("clipboard")
 						.onClick(() => void this.processFile(file, "copy")),
+				);
+				menu.addItem((item) =>
+					item
+						.setTitle("Copy HTML as Plain Text (复制 HTML 纯文本)")
+						.setIcon("file-code")
+						.onClick(() => void this.processFile(file, "copy-html-as-text")),
 				);
 			}),
 		);
@@ -481,14 +560,16 @@ export default class WechatCopyPlugin extends Plugin {
 
 	private async processFile(
 		file: TFile,
-		mode: "preview" | "copy",
+		mode: "preview" | "copy" | "copy-html-as-text",
 	): Promise<void> {
 		try {
 			const markdown = await this.app.vault.read(file);
 			if (mode === "preview") {
 				await this.processAndPreview(markdown, file.path);
-			} else {
+			} else if (mode === "copy") {
 				await this.processAndCopy(markdown, file.path);
+			} else {
+				await this.processAndCopyHtmlAsText(markdown, file.path);
 			}
 		} catch (error) {
 			console.error(error);
@@ -856,40 +937,110 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 	async processAndCopy(markdown: string, currentPath: string) {
 		new Notice("正在渲染排版并处理图片...");
 		try {
-			const { body: mdBody } = this.parseFrontmatter(markdown);
-			const processed = await this.processMarkdown(
-				mdBody,
-				currentPath,
-				true,
-			);
-			const bodyHtml = processed.html;
-			// Strip @media blocks (WeChat handles dark mode on its own; they can't be juice-inlined)
-			const renderCSS = this.getCopyCSS();
-			const copyBodyHtml = normalizeWechatHighlightTags(bodyHtml);
-			const fullHtml = `<div class="wechat-content"><style>${renderCSS}</style>${copyBodyHtml}</div>`;
-			const inlinedHtml = juice(fullHtml);
-			// Use stripped rendered text as plain-text fallback, not raw markdown
-			const plainText = copyBodyHtml
-				.replace(/<[^>]+>/g, "")
-				.replace(/\s+/g, " ")
-				.trim();
-			await this.copyToClipboard(
-				inlinedHtml,
-				plainText,
-				buildCopyNotice({
-					paragraphCount: countHtmlParagraphs(copyBodyHtml),
-					formulaCount: processed.diagnostics.formulaCount,
-					imagePlaceholderCount: countImagePlaceholders(copyBodyHtml),
-					latexFallbackCount: processed.diagnostics.latexFallbackCount,
-					unresolvedWikilinkCount:
-						processed.diagnostics.unresolvedWikilinkCount,
-				}),
+			const artifact = await this.buildCopyArtifact(markdown, currentPath);
+			const copy = () =>
+				this.copyToClipboard(
+					artifact.inlinedHtml,
+					artifact.plainText,
+					artifact.noticeMessage,
+				);
+			await this.copyWithOptionalPreview(
+				artifact.statistics,
+				COPY_CONTENT_LABELS.rich,
+				"复制排版内容",
+				copy,
 			);
 		} catch (error) {
 			console.error(error);
 			const msg = error instanceof Error ? error.message : String(error);
 			new Notice("❌ 复制失败：" + msg);
 		}
+	}
+
+	async processAndCopyHtmlAsText(markdown: string, currentPath: string) {
+		new Notice("正在生成复制版 HTML...");
+		try {
+			const artifact = await this.buildCopyArtifact(markdown, currentPath);
+			const copy = () => this.copyHtmlAsPlainText(artifact.inlinedHtml);
+			await this.copyWithOptionalPreview(
+				artifact.statistics,
+				COPY_CONTENT_LABELS["html-as-text"],
+				"复制 HTML 源码",
+				copy,
+			);
+		} catch (error) {
+			console.error(error);
+			const msg = error instanceof Error ? error.message : String(error);
+			new Notice("❌ 复制 HTML 纯文本失败：" + msg);
+		}
+	}
+
+	private async copyWithOptionalPreview(
+		statistics: CopyStatistics,
+		contentLabel: string,
+		buttonText: string,
+		onCopy: () => Promise<void>,
+	): Promise<void> {
+		if (this.settings.previewBeforeCopy) {
+			this.openCopyPreviewModal(statistics, contentLabel, buttonText, onCopy);
+			return;
+		}
+
+		try {
+			await onCopy();
+		} catch (error) {
+			if (Platform.isDesktop) throw error;
+			console.warn(
+				"[wechat-publish] mobile direct clipboard write failed; offering button retry",
+				error,
+			);
+			new Notice("⚠️ 移动端直复制未成功，请点击按钮重试");
+			this.openCopyPreviewModal(statistics, contentLabel, buttonText, onCopy);
+		}
+	}
+
+	private openCopyPreviewModal(
+		statistics: CopyStatistics,
+		contentLabel: string,
+		buttonText: string,
+		onCopy: () => Promise<void>,
+	): void {
+		new CopyPreviewModal(
+			this.app,
+			statistics,
+			contentLabel,
+			buttonText,
+			onCopy,
+		).open();
+	}
+
+	private async buildCopyArtifact(
+		markdown: string,
+		currentPath: string,
+	): Promise<CopyArtifact> {
+		const { body: mdBody } = this.parseFrontmatter(markdown);
+		const processed = await this.processMarkdown(mdBody, currentPath, true);
+		const copyBodyHtml = normalizeWechatHighlightTags(processed.html);
+		const fullHtml = `<div class="wechat-content"><style>${this.getCopyCSS()}</style>${copyBodyHtml}</div>`;
+		const inlinedHtml = juice(fullHtml);
+		const plainText = copyBodyHtml
+			.replace(/<[^>]+>/g, "")
+			.replace(/\s+/g, " ")
+			.trim();
+
+		return {
+			inlinedHtml,
+			plainText,
+			statistics: buildCopyStatistics(inlinedHtml, plainText),
+			noticeMessage: buildCopyNotice({
+				paragraphCount: countHtmlParagraphs(copyBodyHtml),
+				formulaCount: processed.diagnostics.formulaCount,
+				imagePlaceholderCount: countImagePlaceholders(copyBodyHtml),
+				latexFallbackCount: processed.diagnostics.latexFallbackCount,
+				unresolvedWikilinkCount:
+					processed.diagnostics.unresolvedWikilinkCount,
+			}),
+		};
 	}
 
 	// 将 ![[image.png]] 转换为 ![](image.png)
@@ -1014,24 +1165,124 @@ if(window.matchMedia("(prefers-color-scheme:dark)").matches)setTheme("dark");
 		html: string,
 		plainText: string,
 		noticeMessage: string,
-	) {
-		getElectronClipboard().write({
-			text: plainText,
-			html: html,
-		});
-		new Notice(noticeMessage);
+	): Promise<void> {
+		try {
+			const result = await writeRichClipboard(
+				{ html, text: plainText },
+				{
+					native: getElectronClipboard(),
+					browser: getBrowserClipboard(),
+				},
+			);
+			new Notice(noticeMessage + formatClipboardSourceNotice(result));
+		} catch (error) {
+			throw new Error(formatClipboardFailure(error));
+		}
+	}
+
+	private async copyHtmlAsPlainText(html: string): Promise<void> {
+		try {
+			const result = await writePlainTextClipboard(html, {
+				native: getElectronClipboard(),
+				browser: getBrowserClipboard(),
+			});
+			new Notice(
+				"✅ 已复制复制版 HTML 纯文本，可粘贴到文本编辑器并保存为 .html。" +
+					formatClipboardSourceNotice(result),
+			);
+		} catch (error) {
+			throw new Error(formatClipboardFailure(error));
+		}
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			(await this.loadData()) as WechatPluginSettings,
-		);
+		const data = (await this.loadData()) as
+			| Partial<WechatPluginSettings>
+			| null
+			| undefined;
+		this.settings = {
+			customCSS:
+				typeof data?.customCSS === "string"
+					? data.customCSS
+					: DEFAULT_SETTINGS.customCSS,
+			previewBeforeCopy: data?.previewBeforeCopy === true,
+		};
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+}
+
+class CopyPreviewModal extends Modal {
+	constructor(
+		app: App,
+		private readonly statistics: CopyStatistics,
+		private readonly contentLabel: string,
+		private readonly buttonText: string,
+		private readonly onCopy: () => Promise<void>,
+	) {
+		super(app);
+	}
+
+	onOpen(): void {
+		this.setTitle("复制前预览");
+		this.contentEl.empty();
+		this.modalEl.addClass("wechat-copy-preview-modal");
+
+		const statisticsEl = this.contentEl.createDiv({
+			cls: "wechat-copy-preview-stats",
+		});
+		this.addStatistic(
+			statisticsEl,
+			"正文总字数",
+			`${this.statistics.plainTextCharacters.toLocaleString()} 字`,
+		);
+		this.addStatistic(statisticsEl, "要复制的内容", this.contentLabel);
+		this.addStatistic(
+			statisticsEl,
+			"HTML 大小",
+			`${formatByteSize(this.statistics.htmlByteSize)}（${this.statistics.htmlCharacters.toLocaleString()} 字符）`,
+		);
+
+		const actions = this.contentEl.createDiv({
+			cls: "wechat-copy-preview-actions",
+		});
+		const cancel = actions.createEl("button", { text: "取消" });
+		cancel.addEventListener("click", () => this.close());
+		const copy = actions.createEl("button", {
+			cls: "mod-cta",
+			text: this.buttonText,
+		});
+		copy.addEventListener("click", () => {
+			copy.disabled = true;
+			void this.onCopy().then(
+				() => this.close(),
+				(error) => {
+					const message =
+						error instanceof Error ? error.message : String(error);
+					new Notice("❌ 剪贴板写入失败：" + message);
+					copy.disabled = false;
+				},
+			);
+		});
+		window.setTimeout(() => {
+			if (copy.isConnected) copy.focus();
+		}, 0);
+	}
+
+	private addStatistic(
+		container: HTMLElement,
+		label: string,
+		value: string,
+	): void {
+		const row = container.createDiv({ cls: "wechat-copy-preview-stat" });
+		row.createSpan({ cls: "wechat-copy-preview-stat-label", text: label });
+		row.createSpan({ cls: "wechat-copy-preview-stat-value", text: value });
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
 	}
 }
 
@@ -1048,6 +1299,20 @@ class WechatSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl).setName("WeChat formatting").setHeading();
+
+		new Setting(containerEl)
+			.setName("Preview before copying (复制前弹窗预览)")
+			.setDesc(
+				"默认关闭，复制到微信和复制 HTML 纯文本会直接执行；开启后先显示正文总字数、复制内容类型和 HTML 大小等统计信息。",
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.previewBeforeCopy)
+					.onChange(async (value) => {
+						this.plugin.settings.previewBeforeCopy = value;
+						await this.plugin.saveSettings();
+					}),
+			);
 
 		new Setting(containerEl)
 			.setName("Reset style")

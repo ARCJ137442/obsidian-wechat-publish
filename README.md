@@ -2,7 +2,7 @@
 
 [![Obsidian Plugin](https://img.shields.io/badge/Obsidian-Plugin-9654b5)](https://obsidian.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.3.2-blue)](https://github.com/ARCJ137442/obsidian-wechat-publish/releases)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue)](https://github.com/ARCJ137442/obsidian-wechat-publish/releases)
 
 将 Obsidian Markdown 文章一键复制到微信公众号，支持"简约日记风"排版主题。
 
@@ -21,6 +21,7 @@ Callout 内部支持完整的 markdown 语法：**粗体**、*斜体*、`行内�
 ## Features
 
 - **一键复制** — `Ctrl+P` → `Copy to WeChat` → 粘贴到微信编辑器
+- **复制 HTML 纯文本** — `Copy HTML as Plain Text (复制 HTML 纯文本)`，跨平台复制复制版 HTML 源码，便于保存为 `.html`
 - **8 种 Callout 类型** — note、tip、warning、danger、question、example、quote、info，全部带 lucide SVG 图标
 - **Callout 内部 Markdown** — 粗体、斜体、高亮、列表、代码块、表格、链接
 - **自定义 Callout** — 通过 `callout-manager.json` 添加自定义类型和颜色
@@ -41,7 +42,7 @@ Callout 内部支持完整的 markdown 语法：**粗体**、*斜体*、`行内�
 2. 将 zip 解压到 Obsidian vault 的 `.obsidian/plugins/obsidian-wechat-publish/` 目录
 3. 重启 Obsidian，启用插件
 
-当前插件依赖桌面端的 Node.js/Electron 能力（文件读取、预览服务器和原生剪贴板），最低 Obsidian 版本为 0.16.2，暂不支持移动端。
+插件支持桌面端和移动端加载，最低 Obsidian 版本为 0.16.2。浏览器预览仍仅在桌面端提供；复制到微信默认直接执行，优先使用桌面 Electron 系统剪贴板，缺少该能力时使用通用 Web Clipboard API。若需要在复制前查看正文总字数、复制内容类型和 HTML 大小，可在设置中开启 `Preview before copying (复制前弹窗预览)`；移动端 WebView 若拒绝异步直复制，插件会自动打开同一统计模态框供按钮重试。移动端安卓 Edge 的公众号输入框可能只接受 HTML 源文本，这是平台限制，不代表复制动作失败。
 
 ### 开发者安装
 
@@ -67,10 +68,13 @@ npm run build
 - `Preview in Browser`：预览当前编辑器内容
 - `Preview current note`：按当前文件内容预览，阅读模式也可用
 - `Copy current note to WeChat`：按当前文件内容复制，阅读模式也可用
+- `Copy HTML as Plain Text (复制 HTML 纯文本)`：复制与公众号富文本复制相同的内联 HTML 源码，阅读模式也可用，可粘贴到文本编辑器后保存为 `.html`
 - `Copy selection to WeChat`：只复制编辑器当前选区
-- 文件列表中的右键菜单：预览或复制当前 Markdown 文件
+- 文件列表中的右键菜单：预览、复制当前 Markdown 文件或复制 HTML 纯文本
 
-复制成功后的提示会报告段落数、公式数，以及本地图片占位符、公式文本回退和未配置公众号链接等异常项；它不会阻塞复制动作。
+复制成功后的提示会报告段落数、公式数，以及本地图片占位符、公式文本回退和未配置公众号链接等异常项；浏览器 API 回退时会在 Toast 中明确说明。纯文本命令复制的是内联后的 HTML 源码，不是去掉标签后的普通文本。
+
+`Preview before copying (复制前弹窗预览)` 默认关闭，作用于 `Copy to WeChat` 和 `Copy HTML as Plain Text` 两个命令。开启后，两者使用同一种统计模态框，显示正文总字数、要复制的内容类型和 HTML 大小，再点击按钮执行对应复制。
 
 ### Callout 语法
 

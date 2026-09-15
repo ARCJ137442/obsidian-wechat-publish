@@ -11,3 +11,32 @@ If your plugin does not need CSS, delete this file.
     width: 100%;
     font-family: monospace;
 }
+
+.wechat-copy-preview-stats {
+    display: grid;
+    gap: 8px;
+}
+
+.wechat-copy-preview-stat {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    line-height: 1.5;
+}
+
+.wechat-copy-preview-stat-label {
+    color: var(--text-muted);
+    flex: 0 0 auto;
+}
+
+.wechat-copy-preview-stat-value {
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+.wechat-copy-preview-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 20px;
+}
