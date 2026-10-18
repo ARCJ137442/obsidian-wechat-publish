@@ -455,10 +455,18 @@ export default class WechatCopyPlugin extends Plugin {
 		this.addCommand({
 			id: "copy-to-wechat",
 			name: "Copy to WeChat",
-			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				const markdown = editor.getValue();
-				const currentPath = view.file ? view.file.path : "";
-				await this.processAndCopy(markdown, currentPath);
+			checkCallback: (checking: boolean) => {
+				const file = this.getActiveMarkdownFile();
+				if (!file) return false;
+				if (!checking) {
+					const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+					if (view?.file?.path === file.path) {
+						void this.processAndCopy(view.editor.getValue(), file.path);
+					} else {
+						void this.processFile(file, "copy");
+					}
+				}
+				return true;
 			},
 		});
 

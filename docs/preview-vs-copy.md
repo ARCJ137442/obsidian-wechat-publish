@@ -13,7 +13,7 @@
 
 - **触发**：Obsidian `Ctrl+P` → `Copy to WeChat`
 - **输出**：juice 内联 HTML（所有 CSS 转为 `style=""` 内联属性）；桌面优先通过 Electron 原生 Clipboard API 写入，移动端或原生 API 不可用时使用 Web Clipboard API，同时写入 `text/html` 与 `text/plain`。默认直接复制；移动端若因用户激活限制直写失败，会自动打开统计模态框供按钮重试，也可主动开启“复制前弹窗预览”。
-- **图片**：文本占位符 `【图片：path】`（Base64 会让微信编辑器卡死）
+- **图片**：本地图片输出文件名行 `【图片：path】`；有 Obsidian 图注时在下一行保留图注（Base64 会让微信编辑器卡死）
 - **公式**：MathJax SVG（`<path>` 字形，rollup 打包 mathjax-full，无字体依赖）
 - **颜色**：CSS 变量通过内联 style 传递（如 `--callout-title-color: #555`），`color` 声明被 `getCopyCSS()` 剥离以避免被微信 CSS 覆盖
 - **WeChat CSS 覆盖问题**：微信 rich text editor 会注入 `.js_darkmode__2 { background: rgb(195,190,180) !important }` 等强制样式；解法是**内联 `style="background:transparent!important;padding:0!important"`** 直接写在元素上
@@ -37,7 +37,7 @@
 |------|--------|--------|
 | CSS 方式 | `<style>` 块 + `@media` | juice 内联 `style=""`，仅移除 `prefers-color-scheme` media |
 | 暗色模式 | `@media (prefers-color-scheme: dark)` + 手动按钮 | 微信自动管理（CSS 变量抗覆盖） |
-| 图片 | Base64 渲染 | 文本占位符 |
+| 图片 | Base64 渲染 | 文件名占位符 + 可选图注 |
 | 公式 | MathJax SVG (`<path>` 字形) | MathJax SVG (`<path>` 字形) |
 | WeChat CSS 覆盖 | 不涉及 | 内联 `!important` 对抗 |
 | 剪贴板 | 不涉及 | Electron 原生 API |

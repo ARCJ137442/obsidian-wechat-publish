@@ -77,6 +77,9 @@ describe("Wikilink 转换", () => {
 		expect(convertWikiLinks("![[image.png|alt text]]", "test.md", resolve)).toBe(
 			"![alt text](image.png)",
 		);
+		expect(
+			convertWikiLinks("![[image.png|图注：A|B]]", "test.md", resolve),
+		).toBe("![图注：A|B](image.png)");
 	});
 
 	it("处理空 linkpath、混合内容和多个 wikilink", () => {
